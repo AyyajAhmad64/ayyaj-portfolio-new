@@ -1,0 +1,251 @@
+import React, { useState, useEffect } from "react";
+import { getEducation, saveEducation, deleteEducation } from "../../services/dataService";
+import Button from "../../components/Button";
+import SEO from "../../components/SEO";
+
+export default function AdminEducationPage() {
+  const [list, setList] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [notice, setNotice] = useState("");
+
+  const loadData = async () => {
+    const data = await getEducation();
+    setList(data);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleEdit = (item) => {
+    setEditing({
+      ...item,
+      highlightsStr: item.highlights ? item.highlights.join("\n") : ""
+    });
+  };
+
+  const handleCreate = () => {
+    setEditing({
+      degree: "",
+      specialization: "",
+      institution: "",
+      location: "Pune, Maharashtra, India",
+      year: "Expected 2027",
+      status: "In Progress",
+      current: false,
+      description: "",
+      highlightsStr: "Focus on Cloud Computing & Distributed Architectures\nAdvanced Object-Oriented Software Design"
+    });
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!editing) return;
+
+    const payload = {
+      ...editing,
+      highlights: editing.highlightsStr.split("\n").map((s) => s.trim()).filter(Boolean)
+    };
+    delete payload.highlightsStr;
+
+    await saveEducation(payload);
+    await loadData();
+    setEditing(null);
+    setNotice("Education record saved.");
+    setTimeout(() => setNotice(""), 3000);
+  };
+
+  const handleDelete = async (id, degree) => {
+    if (window.confirm(`Delete qualification "${degree}"?`)) {
+      await deleteEducation(id);
+      await loadData();
+      setNotice("Qualification deleted.");
+      setTimeout(() => setNotice(""), 3000);
+    }
+  };
+
+  return (
+    <div className="admin-page">
+      <SEO title="Manage Education — Admin CMS" description="Manage formal degrees and educational qualifications." />
+
+      <div className="admin-page-header">
+        <div>
+          <span className="section-micro-label">ACADEMIC CREDENTIALS</span>
+          <h1 className="admin-page-title">Education Qualifications</h1>
+          <p className="admin-page-desc">
+            Manage academic degrees, university credentials, coursework highlights, and current study statuses.
+          </p>
+        </div>
+
+        <Button onClick={handleCreate} variant="primary" size="sm">
+          + Add Academic Degree
+        </Button>
+      </div>
+
+      {notice && (
+        <div style={{ padding: "10px 14px", background: "rgba(16, 185, 129, 0.12)", border: "1px solid var(--accent-emerald)", borderRadius: "var(--radius-sm)", color: "var(--accent-emerald)", fontSize: "13px", marginBottom: "20px" }}>
+          {notice}
+        </div>
+      )}
+
+      {editing && (
+        <div className="card" style={{ marginBottom: "32px", border: "2px solid var(--accent-cyan)" }}>
+          <div className="section-row-header">
+            <h2 className="section-title-sm">Edit Degree: {editing.degree || "New Degree"}</h2>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(null)}>
+              ✕ Cancel
+            </button>
+          </div>
+
+          <form onSubmit={handleSave} style={{ display: "grid", gap: "16px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+              <div>
+                <label className="admin-label">DEGREE TITLE</label>
+                <input
+                  type="text"
+                  required
+                  value={editing.degree}
+                  onChange={(e) => setEditing({ ...editing, degree: e.target.value })}
+                  className="admin-input"
+                  placeholder="Master of Computer Applications (MCA)"
+                />
+              </div>
+
+              <div>
+                <label className="admin-label">FIELD / SPECIALIZATION</label>
+                <input
+                  type="text"
+                  value={editing.specialization}
+                  onChange={(e) => setEditing({ ...editing, specialization: e.target.value })}
+                  className="admin-input"
+                  placeholder="Cloud Computing"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+              <div>
+                <label className="admin-label">INSTITUTION / UNIVERSITY</label>
+                <input
+                  type="text"
+                  required
+                  value={editing.institution}
+                  onChange={(e) => setEditing({ ...editing, institution: e.target.value })}
+                  className="admin-input"
+                  placeholder="Dr. D. Y. Patil Institute of Management..."
+                />
+              </div>
+
+              <div>
+                <label className="admin-label">LOCATION &amp; YEAR</label>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input
+                    type="text"
+                    value={editing.location}
+                    onChange={(e) => setEditing({ ...editing, location: e.target.value })}
+                    className="admin-input"
+                    placeholder="Pune, Maharashtra, India"
+                  />
+                  <input
+                    type="text"
+                    value={editing.year}
+                    onChange={(e) => setEditing({ ...editing, year: e.target.value })}
+                    className="admin-input"
+                    placeholder="Expected 2027"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <input
+                type="checkbox"
+                id="isCurrentEdu"
+                checked={Boolean(editing.current)}
+                onChange={(e) => setEditing({ ...editing, current: e.target.checked })}
+              />
+              <label htmlFor="isCurrentEdu" style={{ fontSize: "13px", fontWeight: "700", color: "var(--accent-cyan)" }}>
+                Mark as Current Active Studies
+              </label>
+            </div>
+
+            <div>
+              <label className="admin-label">DESCRIPTION</label>
+              <textarea
+                rows={3}
+                required
+                value={editing.description}
+                onChange={(e) => setEditing({ ...editing, description: e.target.value })}
+                className="admin-textarea"
+              />
+            </div>
+
+            <div>
+              <label className="admin-label">HIGHLIGHTS (ONE PER LINE)</label>
+              <textarea
+                rows={3}
+                value={editing.highlightsStr}
+                onChange={(e) => setEditing({ ...editing, highlightsStr: e.target.value })}
+                className="admin-textarea"
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <Button type="submit" variant="primary">
+                Save Degree
+              </Button>
+              <Button onClick={() => setEditing(null)} variant="outline">
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <div style={{ display: "grid", gap: "16px" }}>
+        {list.map((item) => (
+          <div key={item.id} className="card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <h3 style={{ fontSize: "16px", color: "var(--text-bright)", margin: 0 }}>{item.degree}</h3>
+                  {item.current && (
+                    <span style={{ fontSize: "10.5px", padding: "2px 6px", borderRadius: "4px", background: "var(--accent-cyan-soft)", color: "var(--accent-cyan)", fontWeight: "700" }}>
+                      CURRENT STUDIES
+                    </span>
+                  )}
+                </div>
+                {item.specialization && (
+                  <div style={{ color: "var(--accent-cyan)", fontSize: "13px", fontWeight: "600", marginTop: "2px" }}>
+                    Specialization: {item.specialization}
+                  </div>
+                )}
+                <div style={{ fontSize: "12.5px", color: "var(--text-muted)", marginTop: "2px" }}>
+                  {item.institution} · {item.location} ({item.year})
+                </div>
+                <p style={{ color: "var(--text-muted)", fontSize: "13px", marginTop: "8px", maxWidth: "68ch" }}>
+                  {item.description}
+                </p>
+              </div>
+
+              <div style={{ display: "flex", gap: "8px" }}>
+                <Button onClick={() => handleEdit(item)} variant="outline" size="sm">
+                  Edit ✎
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(item.id, item.degree)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ color: "#f87171" }}
+                >
+                  Delete ✕
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ayyajahmad64.github.io/sitemap.xml
+
