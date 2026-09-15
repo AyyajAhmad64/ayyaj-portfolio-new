@@ -52,7 +52,6 @@ export function AdminAuthProvider({ children }) {
           } else if (event === "SIGNED_OUT" || !session) {
             setAdminUser(null);
           }
-          // Always clear loading once we have a definitive auth event
           if (mounted) setLoading(false);
         }
       );
@@ -67,7 +66,7 @@ export function AdminAuthProvider({ children }) {
 
   /**
    * Sign in via Supabase Auth.
-   * Accepts full email address or a bare username (which will resolve via VITE_ADMIN_EMAIL).
+   * Accepts full email address or a bare username (resolved via VITE_ADMIN_EMAIL).
    */
   const login = async (identifier, password) => {
     if (!isSupabaseConfigured() || !supabase) {
@@ -79,7 +78,6 @@ export function AdminAuthProvider({ children }) {
     }
 
     const trimmed = (identifier || "").trim();
-    // Resolve full email: if identifier is just a username (no @), use configured admin email
     const email = trimmed.includes("@")
       ? trimmed
       : (import.meta.env.VITE_ADMIN_EMAIL || `${trimmed}@gmail.com`);
@@ -138,7 +136,7 @@ export function useAdminAuth() {
 
 /**
  * Route protection wrapper for all /admin/* routes.
- * Shows a neutral loading indicator while session is being restored.
+ * Shows a loading indicator while session is being restored.
  * Redirects to /admin/login if not authenticated.
  */
 export function AdminProtectedRoute({ children }) {

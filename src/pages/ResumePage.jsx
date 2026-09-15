@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { usePortfolioData } from "../context/PortfolioDataContext";
-import { fetchActiveResumeVersion } from "../services/supabaseService";
+import { fetchActiveResumeVersion, logAnalyticsEvent } from "../services/supabaseService";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
-import { logAnalyticsEvent } from "../services/supabaseService";
 import PageHeader from "../components/PageHeader";
 import Button from "../components/Button";
 import SEO from "../components/SEO";
@@ -21,7 +20,6 @@ export default function ResumePage() {
         if (v?.public_url || v?.file_url) setActiveResume(v);
       });
     }
-    // Log resume view
     logAnalyticsEvent("resume_view", "/resume", {});
   }, []);
 
