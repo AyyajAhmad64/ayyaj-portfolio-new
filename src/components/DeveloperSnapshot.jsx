@@ -47,14 +47,14 @@ export default function DeveloperSnapshot({ customData }) {
         <div className="focus-row">
           <span className="focus-label">ACADEMIC PROGRAM</span>
           <span className="focus-value">
-            MCA — Cloud Computing (D. Y. Patil Pune)
+            {snapshot.academicProgram || (profile?.educationDegree ? `${profile.educationDegree} (${profile.educationSpecialization || ""})` : "MCA — Cloud Computing (D. Y. Patil Pune)")}
           </span>
         </div>
 
         <div className="focus-row">
           <span className="focus-label">LOCATION</span>
           <span className="focus-value">
-            Hinjawadi, Pune, Maharashtra, India
+            {snapshot.location || profile?.location || "Hinjawadi, Pune, Maharashtra, India"}
           </span>
         </div>
       </div>

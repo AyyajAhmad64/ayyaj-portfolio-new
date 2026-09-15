@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Outlet, NavLink, Link, useNavigate } from "react-router-dom";
 import { useAdminAuth } from "../context/AdminAuthContext";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
-import Button from "../components/Button";
 
 export default function AdminLayout() {
   const { adminUser, logout } = useAdminAuth();
@@ -15,24 +14,67 @@ export default function AdminLayout() {
     navigate("/admin/login");
   };
 
-  const navSections = [
-    { label: "Dashboard", path: "/admin", exact: true, icon: "📊" },
-    { label: "Inbound Messages", path: "/admin/messages", icon: "📬" },
-    { label: "Projects", path: "/admin/projects", icon: "💻" },
-    { label: "Experience", path: "/admin/experience", icon: "💼" },
-    { label: "Education", path: "/admin/education", icon: "🎓" },
-    { label: "Skills", path: "/admin/skills", icon: "⚡" },
-    { label: "Certifications", path: "/admin/certifications", icon: "📜" },
-    { label: "Achievements", path: "/admin/achievements", icon: "🏆" },
-    { label: "Gallery", path: "/admin/gallery", icon: "🖼️" },
-    { label: "Media Library", path: "/admin/media", icon: "📁" },
-    { label: "Resume", path: "/admin/resume", icon: "📄" },
-    { label: "Profile Details", path: "/admin/profile", icon: "👤" },
-    { label: "Recruiter Mode", path: "/admin/recruiter", icon: "🎯" },
-    { label: "Home Page", path: "/admin/home", icon: "🏠" },
-    { label: "Version History", path: "/admin/versions", icon: "⏱️" },
-    { label: "Audit Logs", path: "/admin/audit", icon: "📋" },
-    { label: "Site Settings", path: "/admin/settings", icon: "⚙️" }
+  const navGroups = [
+    {
+      group: null,
+      items: [
+        { label: "Dashboard", path: "/admin", exact: true, icon: "📊" }
+      ]
+    },
+    {
+      group: "CONTENT",
+      items: [
+        { label: "Home", path: "/admin/home", icon: "🏠" },
+        { label: "About / Profile", path: "/admin/profile", icon: "👤" },
+        { label: "Experience", path: "/admin/experience", icon: "💼" },
+        { label: "Education", path: "/admin/education", icon: "🎓" },
+        { label: "Skills", path: "/admin/skills", icon: "⚡" },
+        { label: "Projects", path: "/admin/projects", icon: "💻" },
+        { label: "Certifications", path: "/admin/certifications", icon: "📜" },
+        { label: "Achievements", path: "/admin/achievements", icon: "🏆" },
+        { label: "Gallery", path: "/admin/gallery", icon: "🖼️" }
+      ]
+    },
+    {
+      group: "ASSETS",
+      items: [
+        { label: "Media Library", path: "/admin/media", icon: "📁" },
+        { label: "Resume Document", path: "/admin/resume", icon: "📄" }
+      ]
+    },
+    {
+      group: "RECRUITER",
+      items: [
+        { label: "Recruiter Mode", path: "/admin/recruiter", icon: "🎯" }
+      ]
+    },
+    {
+      group: "AI",
+      items: [
+        { label: "JARVIS Intelligence", path: "/admin/jarvis", icon: "🤖" }
+      ]
+    },
+    {
+      group: "COMMUNICATION",
+      items: [
+        { label: "Inbound Messages", path: "/admin/messages", icon: "📬" }
+      ]
+    },
+    {
+      group: "INSIGHTS",
+      items: [
+        { label: "Analytics & Telemetry", path: "/admin/analytics", icon: "📈" }
+      ]
+    },
+    {
+      group: "SYSTEM",
+      items: [
+        { label: "SEO & Discoverability", path: "/admin/seo", icon: "🔍" },
+        { label: "Site Settings", path: "/admin/settings", icon: "⚙️" },
+        { label: "Audit Logs", path: "/admin/audit", icon: "📋" },
+        { label: "Version History", path: "/admin/versions", icon: "⏱️" }
+      ]
+    }
   ];
 
   return (
@@ -49,7 +91,7 @@ export default function AdminLayout() {
             {sidebarOpen ? "✕" : "☰"}
           </button>
           <span style={{ fontWeight: "700", color: "var(--text-bright)", fontSize: "14px" }}>
-            ADMIN CMS
+            ADMIN CONTROL CENTER
           </span>
         </div>
 
@@ -69,7 +111,7 @@ export default function AdminLayout() {
         )}
 
         {/* Sidebar */}
-        <aside className={`admin-sidebar ${sidebarOpen ? "is-open" : ""}`}>
+        <aside className={`admin-sidebar ${sidebarOpen ? "is-open" : ""}`} style={{ overflowY: "auto" }}>
           <div className="admin-sidebar-header">
             <Link to="/admin" className="admin-brand-link">
               <span style={{ color: "var(--accent-cyan)", fontWeight: "bold" }}>AYYAJ CMS</span>
@@ -79,32 +121,51 @@ export default function AdminLayout() {
 
           <div className="admin-user-pill">
             <span style={{ color: isCloud ? "var(--accent-emerald)" : "var(--accent-amber)" }}>●</span>
-            <span style={{ fontSize: "12px", color: "var(--text-bright)", fontWeight: "600" }}>
+            <span style={{ fontSize: "12px", color: "var(--text-bright)", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {adminUser?.email || adminUser?.username || "Admin"}
             </span>
             <span style={{ fontSize: "10px", color: "var(--text-dim)", marginLeft: "auto", fontFamily: "var(--font-mono)" }}>
-              {isCloud ? "SUPABASE" : "STANDBY"}
+              {isCloud ? "LIVE" : "STANDBY"}
             </span>
           </div>
 
-          <nav className="admin-nav" aria-label="Admin Navigation">
-            {navSections.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.exact}
-                className={({ isActive }) => `admin-nav-item ${isActive ? "active" : ""}`}
-                onClick={() => setSidebarOpen(false)}
-              >
-                <span className="admin-nav-icon" aria-hidden="true">
-                  {item.icon}
-                </span>
-                <span className="admin-nav-text">{item.label}</span>
-              </NavLink>
+          <nav className="admin-nav" aria-label="Admin Navigation" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {navGroups.map((groupObj, gIdx) => (
+              <div key={gIdx} style={{ marginBottom: "6px" }}>
+                {groupObj.group && (
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: "700",
+                      color: "var(--accent-cyan)",
+                      letterSpacing: "0.08em",
+                      fontFamily: "var(--font-mono)",
+                      padding: "8px 12px 4px",
+                      textTransform: "uppercase"
+                    }}
+                  >
+                    {groupObj.group}
+                  </div>
+                )}
+                {groupObj.items.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    end={item.exact}
+                    className={({ isActive }) => `admin-nav-item ${isActive ? "active" : ""}`}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <span className="admin-nav-icon" aria-hidden="true">
+                      {item.icon}
+                    </span>
+                    <span className="admin-nav-text">{item.label}</span>
+                  </NavLink>
+                ))}
+              </div>
             ))}
           </nav>
 
-          <div className="admin-sidebar-footer">
+          <div className="admin-sidebar-footer" style={{ marginTop: "auto", paddingTop: "16px" }}>
             <Link
               to="/"
               target="_blank"

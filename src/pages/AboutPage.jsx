@@ -4,15 +4,17 @@ import PageHeader from "../components/PageHeader";
 import DeveloperSnapshot from "../components/DeveloperSnapshot";
 import Button from "../components/Button";
 import SEO from "../components/SEO";
+import { resolveAboutContent } from "../utils/contentDefaults";
 
 export default function AboutPage() {
   const { profile } = usePortfolioData();
+  const about = resolveAboutContent(profile);
 
   return (
     <>
       <SEO
         title="About"
-        description="About Ayyaj Kalandar Shaikh — Software Developer specializing in Java, Spring Boot, React.js, and Cloud Computing (MCA)."
+        description={`About ${profile?.name || "Ayyaj Kalandar Shaikh"} — Software Developer specializing in Java, Spring Boot, React.js, and Cloud Computing (MCA).`}
       />
 
       <PageHeader
@@ -34,7 +36,7 @@ export default function AboutPage() {
         aria-label="Professional Introduction"
       >
         <p style={{ fontSize: "15px", color: "var(--text-main)", lineHeight: "1.7", margin: 0 }}>
-          I am <strong>Ayyaj Kalandar Shaikh</strong>, a software developer with a rigorous academic foundation in computer applications and hands-on industry experience building full-stack web platforms. My focus is on crafting robust backend services using <strong>Java and Spring Boot</strong>, architecting component-driven web interfaces in <strong>React.js</strong>, and leveraging <strong>Cloud Computing / AWS</strong> fundamentals for scalable system deployments.
+          {about.introduction}
         </p>
       </section>
 
@@ -54,17 +56,11 @@ export default function AboutPage() {
             </h2>
           </div>
 
-          <p style={{ color: "var(--text-muted)", fontSize: "14px", lineHeight: "1.7" }}>
-            Currently pursuing my <strong>Master of Computer Applications (MCA) in Cloud Computing</strong> at Dr. D. Y. Patil Institute of Management and Entrepreneur Development, Pune, I combine rigorous theoretical knowledge in distributed computing, networking, and algorithms with practical software construction.
-          </p>
-
-          <p style={{ color: "var(--text-muted)", fontSize: "14px", lineHeight: "1.7" }}>
-            As a <strong>MERN Stack + AI Intern at BQARLSON Software Pvt. Ltd.</strong> in Pune, I actively build full-stack features, integrate RESTful API endpoints, and explore pragmatic generative AI integrations that solve concrete user problems without introducing unnecessary complexity.
-          </p>
-
-          <p style={{ color: "var(--text-muted)", fontSize: "14px", lineHeight: "1.7" }}>
-            Prior to my postgraduate studies, I completed my <strong>Bachelor of Computer Applications (BCA)</strong> at Sangameshwar College, Solapur, graduating with 79.50% distinction and solidifying my core competencies in object-oriented programming, data structures, and relational database design.
-          </p>
+          {about.professionalOverview.map((paragraph, idx) => (
+            <p key={idx} style={{ color: "var(--text-muted)", fontSize: "14px", lineHeight: "1.7" }}>
+              {paragraph}
+            </p>
+          ))}
         </article>
 
         {/* Core Architectural Focus */}
@@ -78,32 +74,20 @@ export default function AboutPage() {
             </h2>
           </div>
 
-          <div>
-            <h3 style={{ fontSize: "14px", color: "var(--accent-cyan)", marginBottom: "4px", fontFamily: "var(--font-mono)" }}>
-              01. Layered Backend Design
-            </h3>
-            <p style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: "1.6" }}>
-              Strict separation of concerns applying the Controller-Service-Repository pattern across Spring Boot and ASP.NET Core for maintainable business logic and testable code.
-            </p>
-          </div>
-
-          <div>
-            <h3 style={{ fontSize: "14px", color: "var(--accent-amber)", marginBottom: "4px", fontFamily: "var(--font-mono)" }}>
-              02. Relational Integrity &amp; SQL
-            </h3>
-            <p style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: "1.6" }}>
-              Normalized schema design, explicit indexing, foreign key constraints, and clean transaction handling across MySQL and Microsoft SQL Server.
-            </p>
-          </div>
-
-          <div>
-            <h3 style={{ fontSize: "14px", color: "var(--accent-emerald)", marginBottom: "4px", fontFamily: "var(--font-mono)" }}>
-              03. Cloud &amp; Distributed Systems
-            </h3>
-            <p style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: "1.6" }}>
-              Practical focus on AWS fundamentals (EC2, S3, IAM), container concepts, stateless architectures, and serverless compute primitives.
-            </p>
-          </div>
+          {about.architecturalFocus.map((arch, idx) => {
+            const colors = ["var(--accent-cyan)", "var(--accent-amber)", "var(--accent-emerald)"];
+            const color = colors[idx % colors.length];
+            return (
+              <div key={idx}>
+                <h3 style={{ fontSize: "14px", color, marginBottom: "4px", fontFamily: "var(--font-mono)" }}>
+                  {arch.num || `0${idx + 1}`}. {arch.title}
+                </h3>
+                <p style={{ fontSize: "13px", color: "var(--text-muted)", lineHeight: "1.6" }}>
+                  {arch.desc}
+                </p>
+              </div>
+            );
+          })}
         </aside>
       </div>
 
@@ -121,15 +105,12 @@ export default function AboutPage() {
           </div>
 
           <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "10px" }}>
-            <li style={{ fontSize: "13.5px", color: "var(--text-muted)", lineHeight: "1.6" }}>
-              <strong style={{ color: "var(--text-bright)" }}>Predictability over Cleverness:</strong> Code should be easy to read, debug, and maintain. I prioritize explicit contracts and consistent conventions.
-            </li>
-            <li style={{ fontSize: "13.5px", color: "var(--text-muted)", lineHeight: "1.6" }}>
-              <strong style={{ color: "var(--text-bright)" }}>Data Integrity First:</strong> Clean schema migrations, atomic transactions, and thorough validation guard systems against state corruption.
-            </li>
-            <li style={{ fontSize: "13.5px", color: "var(--text-muted)", lineHeight: "1.6" }}>
-              <strong style={{ color: "var(--text-bright)" }}>Zero Fluff, High Performance:</strong> Prioritize fast load times, accessible markup, and deterministic interactions without heavy animation bloat.
-            </li>
+            {about.philosophy.map((item, idx) => (
+              <li key={idx} style={{ fontSize: "13.5px", color: "var(--text-muted)", lineHeight: "1.6" }}>
+                <strong style={{ color: "var(--text-bright)" }}>{item.title}: </strong>
+                {item.desc}
+              </li>
+            ))}
           </ul>
         </section>
 
@@ -145,18 +126,21 @@ export default function AboutPage() {
           </div>
 
           <p style={{ fontSize: "13.5px", color: "var(--text-muted)", lineHeight: "1.65" }}>
-            I am preparing for full-time engineering roles upon completion of my postgraduate degree, with readiness for immediate onboarding or internship transitions.
+            {about.careerDirection}
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: "var(--bg-elevated)", padding: "12px 14px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-              <span style={{ color: "var(--accent-cyan)", fontWeight: "700" }}>Target Roles:</span> Software Developer · Full Stack Developer · Java Backend Developer
+              <span style={{ color: "var(--accent-cyan)", fontWeight: "700" }}>Target Roles: </span>
+              {profile?.snapshot?.targetRoles || "Software Developer · Full Stack Developer · Java Backend Developer"}
             </div>
             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-              <span style={{ color: "var(--accent-cyan)", fontWeight: "700" }}>Preferred Location:</span> Pune, Maharashtra, India · Open to Hybrid &amp; Remote
+              <span style={{ color: "var(--accent-cyan)", fontWeight: "700" }}>Preferred Location: </span>
+              {profile?.location || "Pune, Maharashtra, India · Open to Hybrid & Remote"}
             </div>
             <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-              <span style={{ color: "var(--accent-emerald)", fontWeight: "700" }}>Notice Period:</span> Immediate / Flexible
+              <span style={{ color: "var(--accent-emerald)", fontWeight: "700" }}>Notice Period: </span>
+              {profile?.availability || "Immediate / Flexible"}
             </div>
           </div>
         </section>

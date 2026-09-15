@@ -46,6 +46,9 @@ import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminMessagesPage from "./pages/admin/AdminMessagesPage";
 import AdminAuditPage from "./pages/admin/AdminAuditPage";
 import AdminVersionsPage from "./pages/admin/AdminVersionsPage";
+import AdminJarvisPage from "./pages/admin/AdminJarvisPage";
+import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
+import AdminSeoPage from "./pages/admin/AdminSeoPage";
 
 import { PortfolioDataProvider } from "./context/PortfolioDataContext";
 
@@ -105,6 +108,9 @@ export default function App() {
                 <Route path="resume" element={<AdminResumePage />} />
                 <Route path="home" element={<AdminHomePage />} />
                 <Route path="recruiter" element={<AdminRecruiterPage />} />
+                <Route path="jarvis" element={<AdminJarvisPage />} />
+                <Route path="analytics" element={<AdminAnalyticsPage />} />
+                <Route path="seo" element={<AdminSeoPage />} />
                 <Route path="versions" element={<AdminVersionsPage />} />
                 <Route path="audit" element={<AdminAuditPage />} />
                 <Route path="settings" element={<AdminSettingsPage />} />

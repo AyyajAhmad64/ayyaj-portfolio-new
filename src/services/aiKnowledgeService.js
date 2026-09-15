@@ -1,11 +1,12 @@
 /**
  * JARVIS — Portfolio Knowledge & AI Intelligence Engine
- * Grounded dynamically on the central data store (dataService.js).
+ * Grounded dynamically on the central data store (PortfolioDataContext / Supabase).
  * Automatically reflects every admin update to Profile, Projects, Experience,
  * Education, Skills, Certifications, Achievements, and Contact details.
  */
 
 import { getStoreSync } from "./dataService.js";
+import { resolveAboutContent } from "../utils/contentDefaults.js";
 
 /**
  * Primary interface for querying JARVIS.
@@ -68,93 +69,262 @@ function resolveLocalKnowledge(q, store) {
   const education = store?.education || [];
   const skills = store?.skills || [];
   const certifications = store?.certifications || [];
-  const currentRole = experience.find((e) => e.current) || experience[0] || {};
+  const achievements = store?.achievements || [];
+  const about = resolveAboutContent(profile);
 
   // 1. SPECIFIC PROJECT LOOKUP (e.g. "Tell me about Nexora", "Silent Help", or newly added project)
   const matchedProject = projects.find(
     (p) =>
-      q.includes((p.title || "").toLowerCase()) ||
+      (p.title && q.includes(p.title.toLowerCase())) ||
       (p.slug && q.includes(p.slug.toLowerCase()))
   );
   if (matchedProject) {
     const techList = Array.isArray(matchedProject.technologies)
       ? matchedProject.technologies.join(", ")
-      : matchedProject.stack || "Full Stack Architecture";
+      : (Array.isArray(matchedProject.techStack) ? matchedProject.techStack.join(", ") : matchedProject.stack || "Full Stack Architecture");
     const statusText = matchedProject.status || "Completed";
 
     return (
       `### ${matchedProject.title} (${matchedProject.type || "Software Engineering Project"})\n\n` +
       `• **Status:** ${statusText}\n` +
       `• **Primary Stack:** ${techList}\n` +
-      `• **Description:** ${matchedProject.description || "N/A"}\n\n` +
+      `• **Description:** ${matchedProject.description || matchedProject.shortDescription || matchedProject.fullDescription || "N/A"}\n\n` +
       (matchedProject.problem ? `• **The Challenge:** ${matchedProject.problem}\n` : "") +
       (matchedProject.solution ? `• **Engineering Solution:** ${matchedProject.solution}\n` : "") +
-      (matchedProject.github ? `• **GitHub Repository:** [${matchedProject.github}](${matchedProject.github})\n` : "") +
-      (matchedProject.liveDemo ? `• **Live Application:** [${matchedProject.liveDemo}](${matchedProject.liveDemo})\n` : "") +
+      (matchedProject.architecture ? `• **Architecture:** ${matchedProject.architecture}\n` : "") +
+      (matchedProject.github || matchedProject.githubUrl ? `• **GitHub Repository:** [${matchedProject.github || matchedProject.githubUrl}](${matchedProject.github || matchedProject.githubUrl})\n` : "") +
+      (matchedProject.liveDemo || matchedProject.liveUrl ? `• **Live Application:** [${matchedProject.liveDemo || matchedProject.liveUrl}](${matchedProject.liveDemo || matchedProject.liveUrl})\n` : "") +
       `\nReview the complete technical case study on the [Project Detail Page](/projects/${matchedProject.slug}).`
     );
   }
 
-  // 2. PROJECTS IN DEVELOPMENT
-  if (q.includes("in development") || q.includes("in progress") || q.includes("current project") || q.includes("working on")) {
-    const devProjects = projects.filter((p) => (p.status || "").toLowerCase().includes("development"));
-    if (devProjects.length > 0) {
-      const devList = devProjects.map((p) => `• **${p.title}** (${p.type}): ${p.description}`).join("\n");
-      return (
-        `**Projects Currently in Active Development:**\n\n${devList}\n\n` +
-        `Track project milestones on the [Projects Page](/projects).`
-      );
-    }
-  }
-
-  // 3. ALL PROJECTS / PORTFOLIO SHOWCASE
-  if (
-    q.includes("project") ||
-    q.includes("built") ||
-    q.includes("work") ||
-    q.includes("portfolio") ||
-    q.includes("showcase")
-  ) {
-    const projectSummaries = projects
-      .map((p) => `• **${p.title}** [${p.status || "Completed"}] — ${p.type}: ${p.description}`)
-      .join("\n");
-    return (
-      `**Key Projects Engineered by Ayyaj:**\n\n${projectSummaries}\n\n` +
-      `Visit the [Projects Page](/projects) for full architectural breakdowns, GitHub repos, and live demos.`
-    );
-  }
-
-  // 4. CURRENT ROLE & EXPERIENCE
-  if (
-    q.includes("current role") ||
-    q.includes("current position") ||
-    q.includes("intern") ||
-    q.includes("internship") ||
-    q.includes("bqarlson") ||
-    q.includes("experience") ||
+  // 2. EXPERIENCE / WORK HISTORY / EMPLOYMENT / INTERNSHIPS
+  // CRITICAL INTENT ROUTING FIX: Must be checked BEFORE general "project" or "work" checks!
+  // Resolves queries like "What is Ayyaj's work experience?", "Tell me about his employment", "Where did he work?"
+  const isExperienceQuery =
+    q.includes("work experience") ||
+    q.includes("working experience") ||
+    q.includes("employment") ||
+    q.includes("job history") ||
     q.includes("work history") ||
-    q.includes("job history")
-  ) {
+    q.includes("career experience") ||
+    q.includes("professional experience") ||
+    q.includes("companies worked") ||
+    q.includes("company worked") ||
+    q.includes("where did he work") ||
+    q.includes("where has he worked") ||
+    q.includes("where does he work") ||
+    q.includes("internship") ||
+    q.includes("internships") ||
+    q.includes("bqarlson") ||
+    (q.includes("experience") && !q.includes("education")) ||
+    (q.includes("job") && !q.includes("project")) ||
+    q.includes("roles held") ||
+    q.includes("past roles");
+
+  if (isExperienceQuery) {
+    if (experience.length === 0) {
+      return "Ayyaj's work experience records are currently being fetched from the cloud CMS. Please check the [Experience Page](/experience).";
+    }
+
+    const currentExp = experience.find((e) => e.current) || experience[0];
     const roleItems = experience
-      .map((exp) => `• **${exp.role}** at **${exp.company}** (${exp.startDate} – ${exp.endDate})\n  ${exp.description}`)
+      .map((exp) => {
+        const techStr = Array.isArray(exp.technologies) && exp.technologies.length > 0
+          ? `\n  *Technologies:* ${exp.technologies.join(", ")}`
+          : "";
+        return `• **${exp.role}** at **${exp.company}** (${exp.startDate || ""} – ${exp.endDate || "Present"})\n  ${exp.description || ""}${techStr}`;
+      })
       .join("\n\n");
 
     return (
-      `**Professional Experience:**\n\n` +
-      `Ayyaj is currently working as **${currentRole.role || "MERN Stack + AI Intern"}** at **${currentRole.company || "BQARLSON"}** (${currentRole.location || "Pune"}).\n\n` +
+      `**Professional Work Experience:**\n\n` +
+      `Ayyaj is currently working as **${currentExp?.role || "MERN Stack + AI Intern"}** at **${currentExp?.company || "BQARLSON Software Pvt. Ltd."}** (${currentExp?.location || "Pune"}).\n\n` +
       `${roleItems}\n\n` +
       `View detailed responsibilities and achievements on the [Experience Page](/experience).`
     );
   }
 
-  // 5. IDENTITY / WHO IS AYYAJ
+  // 3. PROJECTS / PORTFOLIO / APPLICATIONS BUILT
+  const isProjectQuery =
+    q.includes("project") ||
+    q.includes("applications built") ||
+    q.includes("what did he build") ||
+    q.includes("apps built") ||
+    q.includes("software built") ||
+    q.includes("portfolio showcase") ||
+    q.includes("built");
+
+  if (isProjectQuery) {
+    // Projects in active development
+    if (q.includes("in development") || q.includes("in progress") || q.includes("active development")) {
+      const devProjects = projects.filter((p) => (p.status || "").toLowerCase().includes("development"));
+      if (devProjects.length > 0) {
+        const devList = devProjects.map((p) => `• **${p.title}** (${p.type || "Software"}): ${p.description || p.shortDescription || ""}`).join("\n");
+        return `**Projects Currently in Active Development:**\n\n${devList}\n\nTrack project milestones on the [Projects Page](/projects).`;
+      }
+    }
+
+    if (projects.length === 0) {
+      return "No projects are currently listed in the cloud database. Visit the [Projects Page](/projects) for updates.";
+    }
+
+    const projectSummaries = projects
+      .map((p) => `• **${p.title}** [${p.status || "Completed"}] — ${p.type || "Web App"}: ${p.description || p.shortDescription || "Software engineering project."}`)
+      .join("\n");
+
+    return (
+      `**Key Projects Engineered by Ayyaj:**\n\n${projectSummaries}\n\n` +
+      `Visit the [Projects Page](/projects) for full architectural breakdowns, GitHub repositories, and live demos.`
+    );
+  }
+
+  // 4. PROFESSIONAL OVERVIEW / ABOUT NARRATIVE
+  const isOverviewQuery =
+    q.includes("professional overview") ||
+    q.includes("overview") ||
+    q.includes("architectural focus") ||
+    q.includes("development philosophy") ||
+    q.includes("career direction") ||
+    q.includes("current focus");
+
+  if (isOverviewQuery) {
+    const overviewText = Array.isArray(about.professionalOverview) 
+      ? about.professionalOverview.join("\n\n") 
+      : (about.professionalOverview || profile.bio || "Software Developer focusing on Java, Spring Boot, React, and Cloud Computing.");
+
+    return (
+      `**Professional Overview:**\n\n` +
+      `${overviewText}\n\n` +
+      `• **Current Focus:** ${profile?.snapshot?.primaryFocus || "Java Backend & Cloud Computing"}\n` +
+      `• **Career Direction:** ${about.careerDirection}\n\n` +
+      `Explore the [About Page](/about) for his full background, architecture tenets, and engineering principles.`
+    );
+  }
+
+  // 5. EDUCATION / DEGREE / MCA / BCA
+  const isEducationQuery =
+    q.includes("education") ||
+    q.includes("degree") ||
+    q.includes("mca") ||
+    q.includes("bca") ||
+    q.includes("college") ||
+    q.includes("university") ||
+    q.includes("academic") ||
+    q.includes("patil") ||
+    q.includes("sangameshwar") ||
+    q.includes("studies") ||
+    q.includes("qualification");
+
+  if (isEducationQuery) {
+    if (education.length === 0) {
+      return "Education information is currently being fetched from the cloud CMS. Visit the [Education Page](/education).";
+    }
+
+    const eduList = education
+      .map((e) => `• **${e.degree}** — ${e.institution} (${e.year || ""})` + 
+        (e.specialization ? `\n  *Specialization:* ${e.specialization}` : "") + 
+        (e.description ? `\n  ${e.description}` : ""))
+      .join("\n\n");
+
+    return (
+      `**Educational Background:**\n\n` +
+      `${eduList}\n\n` +
+      `View verified academic credentials on the [Education Page](/education).`
+    );
+  }
+
+  // 6. SKILLS / TECHNOLOGIES / TECH STACK / LANGUAGES
+  const isSkillsQuery =
+    q.includes("skills") ||
+    q.includes("skill") ||
+    q.includes("technologies") ||
+    q.includes("tech stack") ||
+    q.includes("stack") ||
+    q.includes("programming languages") ||
+    q.includes("programming language") ||
+    q.includes("languages") ||
+    q.includes("frameworks") ||
+    q.includes("database") ||
+    q.includes("databases") ||
+    q.includes("sql") ||
+    q.includes("cloud") ||
+    q.includes("aws") ||
+    q.includes("java") ||
+    q.includes("spring") ||
+    q.includes("react");
+
+  if (isSkillsQuery) {
+    if (q.includes("java") || q.includes("spring")) {
+      return `**Java & Spring Boot Proficiency:**\n\nJava and Spring Boot form the backbone of Ayyaj's backend engineering skillset. He develops production-ready RESTful APIs, implements JPA/Hibernate repositories, handles complex validation, relational mapping, and JWT security.`;
+    }
+    if (q.includes("react")) {
+      return `**React & Frontend Engineering:**\n\nAyyaj builds responsive Single Page Applications in React.js using modern hooks, context providers, state management, modular architecture, and semantic CSS without bloated animation libraries.`;
+    }
+
+    if (skills.length > 0) {
+      const grouped = skills.map((g) => {
+        const items = Array.isArray(g.skills) ? g.skills.map((s) => s.name || s).join(", ") : "";
+        return `• **${g.category || "General"}:** ${items}`;
+      }).join("\n");
+
+      return `**Technical Skills & Competencies:**\n\n${grouped}\n\nReview complete categorized proficiencies on the [Skills Page](/skills).`;
+    }
+
+    return (
+      `**Technical Architecture & Skills:**\n\n` +
+      `• **Backend:** Java, Spring Boot, REST APIs, Hibernate / JPA, ASP.NET Core\n` +
+      `• **Frontend:** React.js, JavaScript (ES6+), Modern Responsive Layouts, HTML5 / CSS3\n` +
+      `• **Databases:** MySQL, Microsoft SQL Server, MongoDB\n` +
+      `• **Cloud & Infrastructure:** Cloud Computing, AWS Fundamentals, Git/GitHub, Maven, Postman\n\n` +
+      `See complete categorized proficiencies on the [Skills Page](/skills).`
+    );
+  }
+
+  // 7. CERTIFICATIONS / CREDENTIALS
+  const isCertQuery =
+    q.includes("certification") ||
+    q.includes("certifications") ||
+    q.includes("certificate") ||
+    q.includes("certificates") ||
+    q.includes("credential") ||
+    q.includes("credentials") ||
+    q.includes("license");
+
+  if (isCertQuery) {
+    if (certifications.length > 0) {
+      const certList = certifications.slice(0, 5).map((c) => `• **${c.name || c.title}** (${c.issuer} · ${c.date || ""})`).join("\n");
+      return `**Verified Certifications:**\n\n${certList}\n\nSee all certificates on the [Certifications Page](/certifications).`;
+    }
+    return "Certification information is available on the [Certifications Page](/certifications).";
+  }
+
+  // 8. ACHIEVEMENTS / AWARDS / ACCOMPLISHMENTS
+  const isAchievementQuery =
+    q.includes("achievement") ||
+    q.includes("achievements") ||
+    q.includes("award") ||
+    q.includes("awards") ||
+    q.includes("accomplishment") ||
+    q.includes("accomplishments") ||
+    q.includes("milestone") ||
+    q.includes("milestones");
+
+  if (isAchievementQuery) {
+    if (achievements.length > 0) {
+      const achList = achievements.slice(0, 5).map((a) => `• **${a.title}** (${a.organization || ""} · ${a.date || ""}): ${a.description || ""}`).join("\n");
+      return `**Key Milestones & Achievements:**\n\n${achList}\n\nRead detailed achievement case studies on the [Achievements Page](/achievements).`;
+    }
+    return "Achievement information is available on the [Achievements Page](/achievements).";
+  }
+
+  // 9. IDENTITY / WHO IS AYYAJ
   if (
     q.includes("who is") ||
-    q.includes("about") ||
-    q.includes("tell me about") ||
+    q.includes("about ayyaj") ||
+    q.includes("tell me about ayyaj") ||
     q.includes("bio") ||
     q.includes("background") ||
-    q.includes("summary") ||
     q.includes("introduce") ||
     q === "ayyaj" ||
     q === "ayyaj shaikh"
@@ -163,86 +333,11 @@ function resolveLocalKnowledge(q, store) {
       `**${profile.name || "Ayyaj Kalandar Shaikh"}**\n` +
       `*${profile.title || "Software Developer & Full Stack Engineer"}*\n\n` +
       `${profile.bio || "Software Developer and Cloud Computing post-graduate student specializing in Java, Spring Boot, React.js, and cloud backend architectures."}\n\n` +
-      `• **Current Role:** ${profile.currentRole || "MERN Stack + AI Intern at BQARLSON"}\n` +
-      `• **Education:** MCA in Cloud Computing from D. Y. Patil International University, Pune\n` +
-      `• **Primary Backend:** Java, Spring Boot, REST APIs, Hibernate/JPA, ASP.NET Core\n` +
-      `• **Primary Frontend:** React.js, JavaScript (ES6+), HTML5/CSS3\n` +
-      `• **Databases:** MySQL, SQL Server, MongoDB\n` +
-      `• **Cloud:** AWS Fundamentals, Cloud Architecture\n` +
-      `• **Location:** Hinjawadi, Pune, Maharashtra, India\n\n` +
+      `• **Current Role:** ${profile.currentRole || "MERN Stack + AI Intern"}\n` +
+      `• **Education:** ${profile.educationDegree || "MCA in Cloud Computing"} (${profile.educationInstitution || "Pune"})\n` +
+      `• **Location:** ${profile.location || "Hinjawadi, Pune, Maharashtra, India"}\n` +
+      `• **Availability:** ${profile.availability || "Available for Opportunities"}\n\n` +
       `Explore the [About Page](/about) for his full professional biography.`
-    );
-  }
-
-  // 6. TECHNICAL STACK & SKILLS
-  if (
-    q.includes("tech stack") ||
-    q.includes("technologies") ||
-    q.includes("stack") ||
-    q.includes("skills") ||
-    q.includes("programming") ||
-    q.includes("languages") ||
-    q.includes("frameworks") ||
-    q.includes("database") ||
-    q.includes("sql") ||
-    q.includes("cloud") ||
-    q.includes("aws")
-  ) {
-    return (
-      `**Technical Architecture & Skills:**\n\n` +
-      `• **Backend:** Java (Core & Advanced), Spring Boot, REST APIs, Hibernate / JPA, ASP.NET Core, C#\n` +
-      `• **Frontend:** React.js, JavaScript (ES6+), Modern Responsive Layouts, HTML5 / CSS3\n` +
-      `• **Databases:** MySQL, Microsoft SQL Server (SSMS), MongoDB, Relational Normalization\n` +
-      `• **Cloud & Infrastructure:** Cloud Computing Architecture, AWS Fundamentals (EC2, S3, IAM), Git/GitHub, Maven, Postman\n` +
-      `• **Methodologies:** Clean Code, Separation of Concerns, Microservices Design, System Design\n\n` +
-      `See complete categorized proficiencies on the [Skills Page](/skills).`
-    );
-  }
-
-  // 7. SPECIFIC SKILL CHECKS
-  if (q.includes("java") || q.includes("spring")) {
-    return (
-      `**Java & Spring Boot Proficiency:**\n\n` +
-      `Java and Spring Boot form the backbone of Ayyaj's backend engineering skillset. He develops production-ready RESTful APIs, implements JPA/Hibernate repositories, handles complex validation, relational mapping, and JWT security.`
-    );
-  }
-
-  if (q.includes("react") || q.includes("frontend")) {
-    return (
-      `**React & Frontend Engineering:**\n\n` +
-      `Ayyaj builds high-performance, responsive Single Page Applications in React.js using modern hooks, context providers, state management, modular architecture, and semantic CSS without bloated animation libraries.`
-    );
-  }
-
-  // 8. EDUCATION
-  if (
-    q.includes("education") ||
-    q.includes("college") ||
-    q.includes("university") ||
-    q.includes("mca") ||
-    q.includes("bca") ||
-    q.includes("degree") ||
-    q.includes("academic") ||
-    q.includes("patil")
-  ) {
-    const eduList = education
-      .map((e) => `• **${e.degree}** — ${e.institution} (${e.year})` + (e.specialization ? `\n  Specialization: ${e.specialization}` : "") + (e.grade ? ` · Score: ${e.grade}` : ""))
-      .join("\n\n");
-
-    return (
-      `**Educational Background:**\n\n` +
-      `${eduList}\n\n` +
-      `View complete academic achievements on the [Education Page](/education).`
-    );
-  }
-
-  // 9. ADDRESS & LOCATION
-  if (q.includes("address") || q.includes("where do you live") || q.includes("location") || q.includes("city") || q.includes("pune")) {
-    return (
-      `**Location & Work Base:**\n\n` +
-      `Ayyaj is based in **Hinjawadi, Pune, Maharashtra, India**.\n\n` +
-      `• **Location:** Hinjawadi, Pune, Maharashtra, India\n` +
-      `• **Availability:** Available for on-site, hybrid, and remote software engineering opportunities.`
     );
   }
 
@@ -257,78 +352,46 @@ function resolveLocalKnowledge(q, store) {
     );
   }
 
-  // 11. AVAILABILITY & HIRING
-  if (
-    q.includes("available") ||
-    q.includes("hire") ||
-    q.includes("hiring") ||
-    q.includes("job") ||
-    q.includes("opportunity") ||
-    q.includes("opportunities") ||
-    q.includes("notice") ||
-    q.includes("roles") ||
-    q.includes("recruiter")
-  ) {
+  // 11. LOCATION & BASE (Strictly public base only)
+  if (q.includes("address") || q.includes("where do you live") || q.includes("location") || q.includes("city") || q.includes("pune")) {
     return (
-      `**Opportunity Availability:**\n\n` +
-      `Ayyaj is **actively available** for full-time Software Developer, Full Stack Engineer, Java Backend Developer, and Cloud Computing opportunities.\n\n` +
-      `• **Notice Period:** Immediate / Notice-free\n` +
-      `• **Location Preference:** Pune, Maharashtra, India or Remote\n` +
-      `• **Target Roles:** Software Developer · Full Stack Developer · Java Backend Engineer\n\n` +
-      `Hiring managers and recruiters can explore the dedicated [Recruiter Overview](/recruiter/overview) for fast candidate screening!`
+      `**Location & Work Base:**\n\n` +
+      `Ayyaj is based in **${profile.location || "Hinjawadi, Pune, Maharashtra, India"}**.\n\n` +
+      `• **Public Base:** ${profile.location || "Hinjawadi, Pune, Maharashtra, India"}\n` +
+      `• **Availability:** Available for on-site, hybrid, and remote software engineering opportunities.`
     );
   }
 
-  // 12. GITHUB & SOCIALS
-  if (q.includes("github") || q.includes("code") || q.includes("repo")) {
-    return (
-      `Ayyaj's GitHub profile is: [${contact.github || "https://github.com/AyyajAhmad64"}](${contact.github || "https://github.com/AyyajAhmad64"}).\n\n` +
-      `It contains code repositories across Java, Spring Boot, React, ASP.NET Core, and cloud architecture.`
-    );
-  }
-
-  if (q.includes("linkedin")) {
-    return (
-      `Connect with Ayyaj on LinkedIn: [${contact.linkedin || "https://www.linkedin.com/in/ayyajahmad86"}](${contact.linkedin || "https://www.linkedin.com/in/ayyajahmad86"}).`
-    );
-  }
-
-  // 13. CONTACT DETAILS
-  if (q.includes("contact") || q.includes("email") || q.includes("phone") || q.includes("reach") || q.includes("message")) {
+  // 12. CONTACT DETAILS / SOCIALS
+  if (q.includes("contact") || q.includes("email") || q.includes("phone") || q.includes("reach") || q.includes("message") || q.includes("linkedin") || q.includes("github") || q.includes("whatsapp")) {
     return (
       `**Direct Contact Channels:**\n\n` +
-      `• **Email:** [${contact.email}](mailto:${contact.email})\n` +
-      `• **Phone / WhatsApp:** [${contact.phone}](tel:${contact.phoneRaw})\n` +
-      `• **LinkedIn:** [LinkedIn Profile](${contact.linkedin})\n` +
-      `• **GitHub:** [GitHub Profile](${contact.github})\n` +
+      `• **Email:** [${contact.email || "ayyajahmad64@gmail.com"}](mailto:${contact.email || "ayyajahmad64@gmail.com"})\n` +
+      `• **Phone / WhatsApp:** [${contact.phone || "+91 84324 85204"}](tel:${contact.phoneRaw || "+918432485204"})\n` +
+      `• **LinkedIn:** [LinkedIn Profile](${contact.linkedin || "https://www.linkedin.com/in/ayyajahmad86"})\n` +
+      `• **GitHub:** [GitHub Profile](${contact.github || "https://github.com/AyyajAhmad64"})\n` +
       `• **Location:** ${profile.location || "Hinjawadi, Pune, Maharashtra, India"}\n\n` +
       `You can also reach out via the [Contact Page](/contact).`
     );
   }
 
-  // 14. CERTIFICATIONS
-  if (q.includes("certif") || q.includes("credential")) {
-    const certs = certifications.slice(0, 3).map((c) => `• **${c.name || c.title}** (${c.issuer}, ${c.date})`).join("\n");
-    return `**Verified Certifications:**\n\n${certs}\n\nSee all certificates on the [Certifications Page](/certifications).`;
-  }
-
   // Default fallback
   return (
-    `Hi! I'm **JARVIS**, Ayyaj's portfolio assistant. I have complete knowledge of Ayyaj's projects, technical stack, current internship, education, and contact details.\n\n` +
+    `Hi! I'm **JARVIS**, Ayyaj's portfolio assistant. I have complete knowledge of Ayyaj's work experience, projects, technical stack, education, and credentials.\n\n` +
     `Try asking:\n` +
-    `• "Who is Ayyaj?"\n` +
-    `• "What is his current role and tech stack?"\n` +
-    `• "What projects has he built?"\n` +
-    `• "Where is he located?"\n` +
-    `• "Does he know Java?" or "What databases does he use?"\n` +
+    `• "What is Ayyaj's work experience?"\n` +
+    `• "What is his professional overview?"\n` +
+    `• "What projects has he built?" or "Tell me about Nexora"\n` +
     `• "What is his education background?"\n` +
-    `• "How can I contact him or view his resume?"`
+    `• "What is his technical stack?" or "Does he know Java?"\n` +
+    `• "Where is he located?"\n` +
+    `• "How can I contact him or download his resume?"`
   );
 }
 
 export const quickQuestions = [
-  "Who is Ayyaj?",
-  "Current Role & Stack",
+  "Work Experience",
+  "Professional Overview",
   "Featured Projects",
   "Does he know Java?",
   "Education (MCA)",

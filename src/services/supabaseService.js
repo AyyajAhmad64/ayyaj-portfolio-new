@@ -6,7 +6,7 @@
  * and React application models (camelCase).
  */
 
-import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
+import { supabase, isSupabaseConfigured } from "../lib/supabaseClient.js";
 
 /* ============================================================
    PROJECTS SERVICE

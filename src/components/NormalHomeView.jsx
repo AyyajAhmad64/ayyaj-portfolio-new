@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { usePortfolioData } from "../context/PortfolioDataContext";
+import { resolveHomeContent } from "../utils/contentDefaults";
 import ProjectThumbnail from "./ProjectThumbnail";
 import Button from "./Button";
 import SEO from "./SEO";
@@ -8,6 +9,7 @@ import SEO from "./SEO";
 export default function NormalHomeView() {
   const {
     profile: profileData,
+    settings: siteSettings,
     featuredProjects = [],
     experience: experienceData = [],
     education: educationData = [],
@@ -17,6 +19,8 @@ export default function NormalHomeView() {
   } = usePortfolioData();
 
   if (!profileData) return null;
+
+  const homeContent = resolveHomeContent(profileData, siteSettings);
 
   const currentExp = experienceData.find((e) => e.current) || experienceData[0] || {};
   const mcaEducation = educationData.find((e) => e.current) || educationData[0] || {};
@@ -78,21 +82,18 @@ export default function NormalHomeView() {
             </h1>
 
             <div className="hero-role-bar">
-              <span className="hero-role-primary">Software Developer</span>
+              <span className="hero-role-primary">{homeContent.heroRolePrimary}</span>
               <span className="hero-role-divider">/</span>
-              <span className="hero-role-secondary">Full Stack Developer</span>
+              <span className="hero-role-secondary">{homeContent.heroRoleSecondary}</span>
             </div>
 
             <div className="hero-stack-pills">
-              <span>Java</span>
-              <span className="bullet-sep">•</span>
-              <span>Spring Boot</span>
-              <span className="bullet-sep">•</span>
-              <span>React.js</span>
-              <span className="bullet-sep">•</span>
-              <span>ASP.NET Core</span>
-              <span className="bullet-sep">•</span>
-              <span>Cloud Computing</span>
+              {homeContent.heroStackPills.map((pill, pIdx) => (
+                <React.Fragment key={pill}>
+                  {pIdx > 0 && <span className="bullet-sep">•</span>}
+                  <span>{pill}</span>
+                </React.Fragment>
+              ))}
             </div>
 
             <p className="hero-positioning">{profileData.bio}</p>
@@ -161,8 +162,8 @@ export default function NormalHomeView() {
                 }}
               />
               <div className="hero-frame-caption">
-                <span className="caption-label">ENGINEERING PROFILE</span>
-                <span className="caption-val">Ayyaj Shaikh · MCA Cloud</span>
+                <span className="caption-label">{homeContent.heroFrameCaption}</span>
+                <span className="caption-val">{homeContent.heroFrameSub}</span>
               </div>
             </div>
           </div>
@@ -206,9 +207,9 @@ export default function NormalHomeView() {
         <div className="home-section-header">
           <div>
             <span className="section-micro-label">CURATED PORTFOLIO</span>
-            <h2 className="home-section-title">Featured Work</h2>
+            <h2 className="home-section-title">{homeContent.featuredHeading}</h2>
             <p className="home-section-desc">
-              Highlighting robust full-stack platforms with real backend architectures, database schemas, and clean code.
+              {homeContent.featuredDesc}
             </p>
           </div>
           <Button to="/projects" variant="outline" size="sm">
@@ -277,9 +278,9 @@ export default function NormalHomeView() {
         <div className="home-section-header">
           <div>
             <span className="section-micro-label">EXPERIENCE OVERVIEW</span>
-            <h2 className="home-section-title">Career Snapshot</h2>
+            <h2 className="home-section-title">{homeContent.experienceHeading}</h2>
             <p className="home-section-desc">
-              Hands-on industry internships spanning MERN stack, AI integration, and modern frontend development.
+              {homeContent.experienceDesc}
             </p>
           </div>
           <Button to="/experience" variant="outline" size="sm">
@@ -334,9 +335,9 @@ export default function NormalHomeView() {
         <div className="home-section-header">
           <div>
             <span className="section-micro-label">TECHNICAL COMPETENCY</span>
-            <h2 className="home-section-title">Skills &amp; Technologies</h2>
+            <h2 className="home-section-title">{homeContent.skillsHeading}</h2>
             <p className="home-section-desc">
-              Curated core stack used in enterprise backend architectures, dynamic frontends, and cloud deployments.
+              {homeContent.skillsDesc}
             </p>
           </div>
           <Button to="/skills" variant="outline" size="sm">
@@ -398,9 +399,9 @@ export default function NormalHomeView() {
         <div className="home-section-header">
           <div>
             <span className="section-micro-label">ACADEMIC FOUNDATION</span>
-            <h2 className="home-section-title">Education Snapshot</h2>
+            <h2 className="home-section-title">{homeContent.educationHeading}</h2>
             <p className="home-section-desc">
-              Specialized postgraduate training in Cloud Computing along with foundational computer science qualifications.
+              {homeContent.educationDesc}
             </p>
           </div>
           <Button to="/education" variant="outline" size="sm">
@@ -442,9 +443,9 @@ export default function NormalHomeView() {
         <div className="home-section-header">
           <div>
             <span className="section-micro-label">VERIFIED RECORD</span>
-            <h2 className="home-section-title">Milestones &amp; Credentials</h2>
+            <h2 className="home-section-title">{homeContent.achievementsHeading}</h2>
             <p className="home-section-desc">
-              Academic selections, industry internships, and formal software training milestones.
+              {homeContent.achievementsDesc}
             </p>
           </div>
           <Button to="/achievements" variant="outline" size="sm">
@@ -478,9 +479,9 @@ export default function NormalHomeView() {
         <div className="home-section-header">
           <div>
             <span className="section-micro-label">CREDENTIALS & LICENSES</span>
-            <h2 className="home-section-title">Certifications &amp; Training</h2>
+            <h2 className="home-section-title">{homeContent.certificationsHeading}</h2>
             <p className="home-section-desc">
-              Verified technical credentials, licenses, and formal software development training.
+              {homeContent.certificationsDesc}
             </p>
           </div>
           <Button to="/certifications" variant="outline" size="sm">
@@ -514,9 +515,9 @@ export default function NormalHomeView() {
         <div className="home-section-header">
           <div>
             <span className="section-micro-label">VISUAL ARCHIVE</span>
-            <h2 className="home-section-title">Development &amp; Interface Gallery</h2>
+            <h2 className="home-section-title">{homeContent.galleryHeading}</h2>
             <p className="home-section-desc">
-              Visual inspections, architecture audits, and screenshots of responsive development workflows.
+              {homeContent.galleryDesc}
             </p>
           </div>
           <Button to="/gallery" variant="outline" size="sm">
@@ -547,16 +548,16 @@ export default function NormalHomeView() {
         <div className="home-section-header">
           <div>
             <span className="section-micro-label">ENGINEERING PHILOSOPHY</span>
-            <h2 className="home-section-title">How I Build</h2>
+            <h2 className="home-section-title">{homeContent.principlesHeading}</h2>
             <p className="home-section-desc">
-              Core engineering tenets that guide software design, implementation decisions, and team collaborations.
+              {homeContent.principlesDesc}
             </p>
           </div>
         </div>
 
         <div className="principles-grid">
-          {engineeringPrinciples.map((p, idx) => (
-            <div key={p.title} className="card principle-card">
+          {homeContent.principles.map((p, idx) => (
+            <div key={p.title || idx} className="card principle-card">
               <span className="principle-num">0{idx + 1}</span>
               <h3 className="principle-title">{p.title}</h3>
               <div className="principle-sub">{p.subtitle}</div>
@@ -572,17 +573,17 @@ export default function NormalHomeView() {
       <section className="home-cta-section" id="contact" aria-label="Call to Action">
         <div className="cta-inner-box">
           <span className="section-micro-label">INITIATE COLLABORATION</span>
-          <h2 className="cta-heading">Have a project, opportunity, or idea?</h2>
+          <h2 className="cta-heading">{homeContent.contactCtaHeading}</h2>
           <p className="cta-subheading">
-            Let's build something reliable and impactful. I am open to discussing software developer positions, backend opportunities, and cloud projects.
+            {homeContent.contactCtaSubheading}
           </p>
 
           <div className="cta-action-buttons">
             <Button to="/contact" variant="primary" size="lg">
-              Get in Touch →
+              {homeContent.contactCtaButtonText}
             </Button>
             <Button href={`mailto:${profileData.contact?.email}`} variant="outline" size="lg">
-              Email Me Directly ↗
+              {homeContent.contactEmailButtonText}
             </Button>
           </div>
         </div>
