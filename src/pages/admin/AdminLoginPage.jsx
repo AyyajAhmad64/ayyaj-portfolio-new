@@ -119,9 +119,9 @@ export default function AdminLoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="ayyajahmad64@gmail.com"
+              placeholder="Enter admin email"
               className="admin-input"
-              autoComplete="email"
+              autoComplete="off"
               disabled={!isConfigured}
             />
           </div>
