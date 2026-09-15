@@ -19,7 +19,7 @@ export default function DeveloperSnapshot({ customData }) {
         <div className="focus-row">
           <span className="focus-label">CURRENT ROLE</span>
           <span className="focus-value role-value">
-            {snapshot.currentRole || profile?.currentRole || "MERN Stack + AI Intern"}
+            {snapshot.currentPosition || profile?.currentRole || "MERN Stack + AI Intern"}
           </span>
         </div>
 

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getProfile, updateProfile } from "../../services/dataService";
+import { uploadResumeVersion, fetchResumeVersionsList } from "../../services/supabaseService";
+import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import Button from "../../components/Button";
 import SEO from "../../components/SEO";
 
@@ -9,15 +11,24 @@ export default function AdminResumePage() {
   const [resumePdf, setResumePdf] = useState("");
   const [notice, setNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [resumeVersions, setResumeVersions] = useState([]);
+  const [versionNotes, setVersionNotes] = useState("");
+
+  const loadData = async () => {
+    const p = await getProfile();
+    setProfile(p);
+    setResumeDrive(p?.contact?.resumeDrive || "");
+    setResumePdf(p?.contact?.resumePdf || "");
+
+    if (isSupabaseConfigured()) {
+      const versions = await fetchResumeVersionsList();
+      if (versions) setResumeVersions(versions);
+    }
+  };
 
   useEffect(() => {
-    async function load() {
-      const p = await getProfile();
-      setProfile(p);
-      setResumeDrive(p?.contact?.resumeDrive || "");
-      setResumePdf(p?.contact?.resumePdf || "");
-    }
-    load();
+    loadData();
   }, []);
 
   const handleSave = async (e) => {
@@ -36,6 +47,41 @@ export default function AdminResumePage() {
     setTimeout(() => setNotice(""), 3000);
   };
 
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploading(true);
+
+    if (isSupabaseConfigured()) {
+      try {
+        const vNum = `v${new Date().getFullYear()}.${resumeVersions.length + 1}`;
+        const newVersion = await uploadResumeVersion(file, vNum, versionNotes || "Admin upload");
+        if (newVersion?.file_url) {
+          setResumePdf(newVersion.file_url);
+          const updatedContact = {
+            ...profile.contact,
+            resumePdf: newVersion.file_url
+          };
+          await updateProfile({ contact: updatedContact });
+          await loadData();
+          setNotice(`Resume PDF uploaded to Supabase Storage: ${vNum}`);
+          setIsUploading(false);
+          setTimeout(() => setNotice(""), 3000);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to upload resume to Supabase:", err);
+        setNotice(`Cloud upload failed: ${err.message}`);
+      }
+    }
+
+    // Local fallback
+    setResumePdf(file.name);
+    setIsUploading(false);
+    setNotice(`Configured local filename "${file.name}". Please ensure it exists in public/ directory.`);
+    setTimeout(() => setNotice(""), 3000);
+  };
+
   if (!profile) return <div className="admin-page">Loading resume configuration...</div>;
 
   return (
@@ -47,19 +93,25 @@ export default function AdminResumePage() {
           <span className="section-micro-label">DOCUMENTS &amp; CREDENTIALS</span>
           <h1 className="admin-page-title">Resume Configuration</h1>
           <p className="admin-page-desc">
-            Manage your Google Drive public resume link, PDF file storage path, and public download triggers.
+            Manage your Google Drive public resume link, upload versioned PDF files to Supabase Cloud Storage (resume bucket), and configure public download triggers.
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           {resumeDrive && (
             <Button href={resumeDrive} target="_blank" rel="noopener noreferrer" variant="outline" size="sm">
               Open Drive ↗
             </Button>
           )}
           {resumePdf && (
-            <Button href={resumePdf.startsWith("/") ? resumePdf : `/${resumePdf}`} target="_blank" rel="noopener noreferrer" variant="primary" size="sm">
-              View Local PDF ↗
+            <Button
+              href={resumePdf.startsWith("http") ? resumePdf : (resumePdf.startsWith("/") ? resumePdf : `/${resumePdf}`)}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="primary"
+              size="sm"
+            >
+              View Active PDF ↗
             </Button>
           )}
         </div>
@@ -102,21 +154,48 @@ export default function AdminResumePage() {
             </div>
 
             <div>
-              <label className="admin-label">LOCAL / STATIC PDF FILENAME</label>
+              <label className="admin-label">ACTIVE RESUME PDF URL OR PATH</label>
               <input
                 type="text"
                 required
                 value={resumePdf}
                 onChange={(e) => setResumePdf(e.target.value)}
                 className="admin-input"
-                placeholder="Ayyaj Kalandar Shaikh - Resume.pdf"
+                placeholder="https://...supabase.co/... or Ayyaj Kalandar Shaikh - Resume.pdf"
               />
               <p style={{ fontSize: "11.5px", color: "var(--text-dim)", marginTop: "6px" }}>
-                Filename placed in the public/ root directory for high-speed direct downloads and fallback embedding.
+                Cloud storage URL or filename in public/ root used for instant downloads.
               </p>
             </div>
 
-            <div style={{ marginTop: "12px" }}>
+            {/* Direct PDF Upload to Supabase */}
+            <div style={{ padding: "14px", background: "var(--bg-base)", border: "1px solid var(--border-subtle)", borderRadius: "var(--radius-sm)" }}>
+              <label className="admin-label" style={{ color: "var(--accent-cyan)", fontWeight: "700" }}>
+                UPLOAD NEW PDF RESUME TO SUPABASE STORAGE
+              </label>
+              <div style={{ marginBottom: "8px" }}>
+                <input
+                  type="text"
+                  value={versionNotes}
+                  onChange={(e) => setVersionNotes(e.target.value)}
+                  placeholder="Optional version notes (e.g. Added MERN & Cloud MCA highlights)"
+                  className="admin-input"
+                  style={{ fontSize: "12px", marginBottom: "8px" }}
+                />
+              </div>
+              <label className="btn btn-outline btn-sm" style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <span>📁 {isUploading ? "Uploading to Cloud..." : "Select & Upload PDF"}</span>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  disabled={isUploading}
+                  style={{ display: "none" }}
+                  onChange={handlePdfUpload}
+                />
+              </label>
+            </div>
+
+            <div style={{ marginTop: "8px" }}>
               <Button type="submit" variant="primary" disabled={isSaving}>
                 {isSaving ? "Saving..." : "Save Resume Pathways"}
               </Button>
@@ -124,7 +203,7 @@ export default function AdminResumePage() {
           </form>
         </div>
 
-        {/* Verification Status Card */}
+        {/* Verification Status Card & Versions List */}
         <div className="card">
           <h2 className="section-title-sm" style={{ marginBottom: "16px" }}>Document Health Check</h2>
           <div style={{ display: "grid", gap: "12px" }}>
@@ -140,21 +219,65 @@ export default function AdminResumePage() {
 
             <div style={{ padding: "12px", background: "var(--bg-card-hover)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                <span style={{ fontSize: "12px", color: "var(--text-dim)", fontWeight: "600" }}>LOCAL PDF FILE</span>
-                <span style={{ fontSize: "11px", color: "var(--accent-cyan)", fontWeight: "700" }}>CONFIGURED</span>
+                <span style={{ fontSize: "12px", color: "var(--text-dim)", fontWeight: "600" }}>PDF STORAGE PATH</span>
+                <span style={{ fontSize: "11px", color: "var(--accent-cyan)", fontWeight: "700" }}>
+                  {resumePdf.startsWith("http") ? "SUPABASE CLOUD" : "LOCAL ASSET"}
+                </span>
               </div>
-              <div style={{ fontSize: "12px", color: "var(--text-bright)" }}>
+              <div style={{ fontSize: "12px", color: "var(--text-bright)", wordBreak: "break-all" }}>
                 {resumePdf}
               </div>
             </div>
 
-            <div style={{ padding: "14px", background: "rgba(56, 189, 248, 0.08)", border: "1px solid rgba(56, 189, 248, 0.2)", borderRadius: "var(--radius-sm)", fontSize: "12.5px", color: "var(--text-muted)", lineHeight: "1.6" }}>
-              💡 <strong>Pro-tip:</strong> Whenever you update your resume file, overwrite <code>public/{resumePdf}</code> or update the Google Drive file. No code recompilation is required.
-            </div>
+            {resumeVersions.length > 0 && (
+              <div style={{ marginTop: "12px" }}>
+                <h3 style={{ fontSize: "13px", color: "var(--text-bright)", marginBottom: "8px", fontWeight: "700" }}>
+                  Cloud Storage Versions ({resumeVersions.length})
+                </h3>
+                <div style={{ display: "grid", gap: "8px", maxHeight: "200px", overflowY: "auto" }}>
+                  {resumeVersions.map((v) => (
+                    <div
+                      key={v.id}
+                      style={{
+                        padding: "8px 10px",
+                        background: v.is_active ? "rgba(56, 189, 248, 0.12)" : "var(--bg-base)",
+                        border: "1px solid var(--border-subtle)",
+                        borderRadius: "var(--radius-sm)",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center"
+                      }}
+                    >
+                      <div>
+                        <span style={{ fontSize: "12px", fontWeight: "700", color: "var(--text-bright)" }}>
+                          {v.version}
+                        </span>
+                        {v.is_active && (
+                          <span style={{ fontSize: "10px", color: "var(--accent-cyan)", marginLeft: "6px", fontWeight: "700" }}>
+                            [ACTIVE]
+                          </span>
+                        )}
+                        <p style={{ fontSize: "11px", color: "var(--text-dim)", margin: "2px 0 0" }}>
+                          {v.title} {v.notes ? `• ${v.notes}` : ""}
+                        </p>
+                      </div>
+                      <a
+                        href={v.file_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-ghost btn-sm"
+                        style={{ fontSize: "11px" }}
+                      >
+                        View ↗
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
-

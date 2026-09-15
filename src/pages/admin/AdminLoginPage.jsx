@@ -1,40 +1,54 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAdminAuth } from "../../context/AdminAuthContext";
+import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import Button from "../../components/Button";
 import SEO from "../../components/SEO";
 
 export default function AdminLoginPage() {
-  const { login, isAuthenticated } = useAdminAuth();
+  const { login, isAuthenticated, loading } = useAdminAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const from = location.state?.from?.pathname || "/admin";
+  const isConfigured = isSupabaseConfigured();
 
   // Redirect if already authenticated
-  if (isAuthenticated) {
-    navigate(from, { replace: true });
-    return null;
+  useEffect(() => {
+    if (!loading && isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, loading, navigate, from]);
+
+  if (loading) {
+    return (
+      <div className="admin-login-wrapper">
+        <div className="admin-login-box card" style={{ textAlign: "center", padding: "48px 32px" }}>
+          <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "13px" }}>
+            Verifying session...
+          </span>
+        </div>
+      </div>
+    );
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
-    setLoading(true);
+    setSubmitting(true);
 
-    const res = await login(username, password, remember);
-    setLoading(false);
+    const res = await login(email.trim(), password);
+    setSubmitting(false);
 
     if (res.success) {
       navigate(from, { replace: true });
     } else {
-      setErrorMsg(res.error || "Authentication failed. Please verify credentials.");
+      setErrorMsg(res.error || "Authentication failed. Please verify your credentials.");
     }
   };
 
@@ -51,9 +65,29 @@ export default function AdminLoginPage() {
             Admin Control Center
           </h1>
           <p style={{ color: "var(--text-muted)", fontSize: "13px" }}>
-            Enter administrator authorization credentials to manage portfolio content.
+            Enter your Supabase Auth credentials to access the CMS.
           </p>
         </div>
+
+        {/* Supabase not configured warning */}
+        {!isConfigured && (
+          <div
+            style={{
+              padding: "10px 14px",
+              background: "rgba(245, 158, 11, 0.1)",
+              border: "1px solid rgba(245, 158, 11, 0.35)",
+              borderRadius: "var(--radius-sm)",
+              color: "#fcd34d",
+              fontSize: "12px",
+              marginBottom: "16px",
+              lineHeight: "1.6"
+            }}
+          >
+            ⚠️ <strong>Supabase not configured.</strong> Add{" "}
+            <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> to your{" "}
+            <code>.env</code> file to enable cloud authentication.
+          </div>
+        )}
 
         {errorMsg && (
           <div
@@ -74,20 +108,21 @@ export default function AdminLoginPage() {
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
           <div>
             <label
-              htmlFor="username"
+              htmlFor="email"
               style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "var(--accent-amber)", marginBottom: "6px" }}
             >
-              ADMIN USERNAME
+              ADMIN EMAIL
             </label>
             <input
-              id="username"
+              id="email"
               type="text"
               required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. ayyaj"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="ayyajahmad64@gmail.com"
               className="admin-input"
-              autoComplete="username"
+              autoComplete="email"
+              disabled={!isConfigured}
             />
           </div>
 
@@ -107,21 +142,18 @@ export default function AdminLoginPage() {
               placeholder="••••••••••••"
               className="admin-input"
               autoComplete="current-password"
+              disabled={!isConfigured}
             />
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "var(--text-muted)" }}>
-            <input
-              type="checkbox"
-              id="remember"
-              checked={remember}
-              onChange={(e) => setRemember(e.target.checked)}
-            />
-            <label htmlFor="remember">Remember session on this workstation</label>
-          </div>
-
-          <Button type="submit" variant="primary" size="lg" style={{ width: "100%", marginTop: "8px" }}>
-            {loading ? "Authenticating..." : "Authorize Access →"}
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            style={{ width: "100%", marginTop: "8px" }}
+            disabled={submitting || !isConfigured}
+          >
+            {submitting ? "Authenticating..." : "Authorize Access →"}
           </Button>
         </form>
 
@@ -134,4 +166,3 @@ export default function AdminLoginPage() {
     </div>
   );
 }
-

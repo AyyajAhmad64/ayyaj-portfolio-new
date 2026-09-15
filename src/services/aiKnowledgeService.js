@@ -20,14 +20,28 @@ export async function queryJARVIS(prompt, history = [], customStore = null) {
   const remoteEndpoint = typeof import.meta !== "undefined" ? import.meta.env?.VITE_AI_CHAT_ENDPOINT : undefined;
   if (remoteEndpoint) {
     try {
+      // Safe sanitized portfolio snapshot without private address lines
+      const safeStore = {
+        ...store,
+        profile: {
+          ...store.profile,
+          fullAddress: "Hinjawadi, Pune, Maharashtra, India",
+          addressLines: ["Hinjawadi, Pune, Maharashtra, India"]
+        }
+      };
+
       const res = await fetch(remoteEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: cleanPrompt,
           history,
-          portfolioData: store,
-          assistantName: "JARVIS"
+          portfolioData: safeStore,
+          assistantName: "JARVIS",
+          systemInstruction:
+            "You are JARVIS, the factual portfolio assistant for Ayyaj Kalandar Shaikh. " +
+            "Answer strictly using the provided portfolio data. Never invent, exaggerate, or assume unverified credentials, " +
+            "companies, or projects. Location is Hinjawadi, Pune, Maharashtra, India. Never reveal private residential premises."
         })
       });
       if (res.ok) {
@@ -223,19 +237,12 @@ function resolveLocalKnowledge(q, store) {
   }
 
   // 9. ADDRESS & LOCATION
-  if (q.includes("address") || q.includes("where do you live") || q.includes("full address") || q.includes("street")) {
+  if (q.includes("address") || q.includes("where do you live") || q.includes("location") || q.includes("city") || q.includes("pune")) {
     return (
-      `**Verified Residential / Contact Address:**\n\n` +
-      `${profile.fullAddress || "Krishna Priyanka New Building, C101, 2nd Floor, The Legend Rd, Hinjawadi, Phase 1, Pune, Maharashtra 411057, India"}\n\n` +
-      `• **Public Compact Display:** Hinjawadi, Pune, Maharashtra, India\n` +
-      `• **Current Location:** Pune, Maharashtra, India`
-    );
-  }
-
-  if (q.includes("location") || q.includes("where are you") || q.includes("city") || q.includes("pune")) {
-    return (
+      `**Location & Work Base:**\n\n` +
       `Ayyaj is based in **Hinjawadi, Pune, Maharashtra, India**.\n\n` +
-      `He is available for full-time on-site, hybrid, and remote software engineering opportunities.`
+      `• **Location:** Hinjawadi, Pune, Maharashtra, India\n` +
+      `• **Availability:** Available for on-site, hybrid, and remote software engineering opportunities.`
     );
   }
 
@@ -312,7 +319,7 @@ function resolveLocalKnowledge(q, store) {
     `• "Who is Ayyaj?"\n` +
     `• "What is his current role and tech stack?"\n` +
     `• "What projects has he built?"\n` +
-    `• "What is his exact address?"\n` +
+    `• "Where is he located?"\n` +
     `• "Does he know Java?" or "What databases does he use?"\n` +
     `• "What is his education background?"\n` +
     `• "How can I contact him or view his resume?"`
@@ -325,6 +332,6 @@ export const quickQuestions = [
   "Featured Projects",
   "Does he know Java?",
   "Education (MCA)",
-  "Full Address & Location",
+  "Location & Availability",
   "Contact & Resume"
 ];

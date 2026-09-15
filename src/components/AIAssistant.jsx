@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { queryJARVIS, quickQuestions } from "../services/aiKnowledgeService";
+import { usePortfolioData } from "../context/PortfolioDataContext";
 
 export default function AIAssistant() {
+  const portfolioData = usePortfolioData();
+
   const [isOpen, setIsOpen] = useState(false);
   const [inputVal, setInputVal] = useState("");
   const [messages, setMessages] = useState([
@@ -45,7 +48,7 @@ export default function AIAssistant() {
     setIsLoading(true);
 
     try {
-      const responseText = await queryJARVIS(textToSend, messages);
+      const responseText = await queryJARVIS(textToSend, messages, portfolioData);
       const assistantMessage = {
         id: `assistant-${Date.now()}`,
         role: "assistant",

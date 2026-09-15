@@ -11,6 +11,8 @@ import {
   getProfile,
   resetToDefaults
 } from "../../services/dataService";
+import { fetchMessagesInbox } from "../../services/supabaseService";
+import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import Button from "../../components/Button";
 import SEO from "../../components/SEO";
 
@@ -22,14 +24,17 @@ export default function AdminDashboardPage() {
     skillCategories: 0,
     certifications: 0,
     achievements: 0,
-    gallery: 0
+    gallery: 0,
+    messages: 0,
+    unreadMessages: 0
   });
 
   const [profile, setProfile] = useState(null);
   const [notice, setNotice] = useState("");
+  const isCloud = isSupabaseConfigured();
 
   const loadData = async () => {
-    const [projs, exp, edu, skills, certs, ach, gal, prof] = await Promise.all([
+    const [projs, exp, edu, skills, certs, ach, gal, prof, msgs] = await Promise.all([
       getProjects(),
       getExperience(),
       getEducation(),
@@ -37,7 +42,8 @@ export default function AdminDashboardPage() {
       getCertifications(),
       getAchievements(),
       getGallery(),
-      getProfile()
+      getProfile(),
+      fetchMessagesInbox()
     ]);
 
     setStats({
@@ -47,7 +53,9 @@ export default function AdminDashboardPage() {
       skillCategories: skills.length,
       certifications: certs.length,
       achievements: ach.length,
-      gallery: gal.length
+      gallery: gal.length,
+      messages: msgs.length,
+      unreadMessages: msgs.filter((m) => m.status === "unread").length
     });
 
     setProfile(prof);
@@ -67,6 +75,7 @@ export default function AdminDashboardPage() {
   };
 
   const statCards = [
+    { title: "Inbound Messages", count: stats.messages, link: "/admin/messages", icon: "📬", color: stats.unreadMessages > 0 ? "#f87171" : "var(--accent-cyan)", badge: stats.unreadMessages > 0 ? `${stats.unreadMessages} NEW` : null },
     { title: "Projects", count: stats.projects, link: "/admin/projects", icon: "💻", color: "var(--accent-cyan)" },
     { title: "Experience", count: stats.experience, link: "/admin/experience", icon: "💼", color: "var(--accent-amber)" },
     { title: "Education", count: stats.education, link: "/admin/education", icon: "🎓", color: "var(--accent-emerald)" },
@@ -85,11 +94,11 @@ export default function AdminDashboardPage() {
           <span className="section-micro-label">MANAGEMENT CONSOLE</span>
           <h1 className="admin-page-title">Content Overview &amp; Control</h1>
           <p className="admin-page-desc">
-            Directly modify, publish, and structure public developer platform entities without touching source code.
+            Directly modify, publish, and structure public developer platform entities with real Supabase Cloud database persistence and storage.
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
           <Button onClick={handleReset} variant="outline" size="sm">
             ↺ Reset to Defaults
           </Button>
@@ -115,6 +124,45 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
+      {/* Cloud Status Banner */}
+      <div
+        style={{
+          padding: "14px 18px",
+          background: isCloud ? "rgba(16, 185, 129, 0.08)" : "rgba(245, 158, 11, 0.08)",
+          border: `1px solid ${isCloud ? "var(--accent-emerald)" : "var(--accent-amber)"}`,
+          borderRadius: "var(--radius-sm)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "12px",
+          marginBottom: "24px"
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span style={{ fontSize: "16px" }}>{isCloud ? "⚡" : "⚠️"}</span>
+          <div>
+            <strong style={{ color: isCloud ? "var(--accent-emerald)" : "var(--accent-amber)", fontSize: "13px" }}>
+              {isCloud ? "Supabase Cloud Database & Storage: CONNECTED" : "Supabase: Standby Mode (Local Cache Active)"}
+            </strong>
+            <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: "2px 0 0" }}>
+              {isCloud
+                ? "All CMS changes sync to Supabase PostgreSQL tables and Storage buckets."
+                : "Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to .env to enable direct cloud sync."}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: "8px" }}>
+          <Link to="/admin/versions" className="btn btn-outline btn-sm">
+            Version History ⏱️
+          </Link>
+          <Link to="/admin/audit" className="btn btn-outline btn-sm">
+            Audit Logs 📋
+          </Link>
+        </div>
+      </div>
+
       {/* Entity Stat Cards Grid */}
       <div className="admin-stat-grid" style={{ marginBottom: "32px" }}>
         {statCards.map((c) => (
@@ -123,7 +171,14 @@ export default function AdminDashboardPage() {
               <span style={{ fontSize: "20px" }} aria-hidden="true">
                 {c.icon}
               </span>
-              <span style={{ fontSize: "24px", fontWeight: "800", color: c.color }}>{c.count}</span>
+              <div style={{ textAlign: "right" }}>
+                <span style={{ fontSize: "24px", fontWeight: "800", color: c.color }}>{c.count}</span>
+                {c.badge && (
+                  <span style={{ display: "block", fontSize: "10px", fontWeight: "800", color: "#f87171" }}>
+                    {c.badge}
+                  </span>
+                )}
+              </div>
             </div>
             <div style={{ marginTop: "10px" }}>
               <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-bright)" }}>
@@ -169,14 +224,13 @@ export default function AdminDashboardPage() {
             </Link>
           </div>
           <div style={{ fontSize: "13px", display: "grid", gap: "6px", color: "var(--text-muted)" }}>
-            <div><strong>Environment:</strong> Production / Local Hybrid</div>
-            <div><strong>Storage Engine:</strong> Persistent Client DataStore (LocalStorage)</div>
-            <div><strong>API Ready:</strong> CRUD Endpoints Abstracted in `dataService.js`</div>
-            <div><strong>Mode Support:</strong> Standard Portfolio + Recruiter Overview</div>
+            <div><strong>CMS Engine:</strong> Supabase PostgreSQL + Local Cache</div>
+            <div><strong>Storage Buckets:</strong> <code>portfolio-media</code>, <code>resume</code></div>
+            <div><strong>Row Level Security:</strong> Enabled (Public Read Published, Admin Full Access)</div>
+            <div><strong>Contact Form:</strong> Connected to <code>messages</code> table</div>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

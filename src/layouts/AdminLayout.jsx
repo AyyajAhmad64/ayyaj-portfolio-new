@@ -1,21 +1,23 @@
 import React, { useState } from "react";
 import { Outlet, NavLink, Link, useNavigate } from "react-router-dom";
 import { useAdminAuth } from "../context/AdminAuthContext";
+import { isSupabaseConfigured } from "../lib/supabaseClient";
 import Button from "../components/Button";
 
 export default function AdminLayout() {
   const { adminUser, logout } = useAdminAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isCloud = isSupabaseConfigured();
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate("/admin/login");
   };
 
   const navSections = [
     { label: "Dashboard", path: "/admin", exact: true, icon: "📊" },
-    { label: "Profile", path: "/admin/profile", icon: "👤" },
+    { label: "Inbound Messages", path: "/admin/messages", icon: "📬" },
     { label: "Projects", path: "/admin/projects", icon: "💻" },
     { label: "Experience", path: "/admin/experience", icon: "💼" },
     { label: "Education", path: "/admin/education", icon: "🎓" },
@@ -25,9 +27,12 @@ export default function AdminLayout() {
     { label: "Gallery", path: "/admin/gallery", icon: "🖼️" },
     { label: "Media Library", path: "/admin/media", icon: "📁" },
     { label: "Resume", path: "/admin/resume", icon: "📄" },
-    { label: "Home Page", path: "/admin/home", icon: "🏠" },
+    { label: "Profile Details", path: "/admin/profile", icon: "👤" },
     { label: "Recruiter Mode", path: "/admin/recruiter", icon: "🎯" },
-    { label: "Settings", path: "/admin/settings", icon: "⚙️" }
+    { label: "Home Page", path: "/admin/home", icon: "🏠" },
+    { label: "Version History", path: "/admin/versions", icon: "⏱️" },
+    { label: "Audit Logs", path: "/admin/audit", icon: "📋" },
+    { label: "Site Settings", path: "/admin/settings", icon: "⚙️" }
   ];
 
   return (
@@ -68,17 +73,17 @@ export default function AdminLayout() {
           <div className="admin-sidebar-header">
             <Link to="/admin" className="admin-brand-link">
               <span style={{ color: "var(--accent-cyan)", fontWeight: "bold" }}>AYYAJ CMS</span>
-              <span className="admin-badge-v2">PORTAL v2.0</span>
+              <span className="admin-badge-v2">SUPABASE CLOUD</span>
             </Link>
           </div>
 
           <div className="admin-user-pill">
-            <span style={{ color: "var(--accent-emerald)" }}>●</span>
+            <span style={{ color: isCloud ? "var(--accent-emerald)" : "var(--accent-amber)" }}>●</span>
             <span style={{ fontSize: "12px", color: "var(--text-bright)", fontWeight: "600" }}>
-              {adminUser?.username || "Admin"}
+              {adminUser?.email || adminUser?.username || "Admin"}
             </span>
-            <span style={{ fontSize: "10.5px", color: "var(--text-dim)", marginLeft: "auto" }}>
-              AUTHENTICATED
+            <span style={{ fontSize: "10px", color: "var(--text-dim)", marginLeft: "auto", fontFamily: "var(--font-mono)" }}>
+              {isCloud ? "SUPABASE" : "STANDBY"}
             </span>
           </div>
 
@@ -128,4 +133,3 @@ export default function AdminLayout() {
     </div>
   );
 }
-

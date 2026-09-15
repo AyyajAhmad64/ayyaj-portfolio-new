@@ -13,13 +13,6 @@ export const profileData = {
   educationSpecialization: "Cloud Computing",
   educationInstitution: "Dr. D. Y. Patil Institute of Management and Entrepreneur Development, Pune",
   location: "Hinjawadi, Pune, Maharashtra, India",
-  fullAddress: "Krishna Priyanka New Building, C101, 2nd Floor, The Legend Rd, Hinjawadi, Phase 1, Pune, Maharashtra 411057, India",
-  addressLines: [
-    "Krishna Priyanka New Building,",
-    "C101, 2nd Floor,",
-    "The Legend Rd, Hinjawadi, Phase 1,",
-    "Pune, Maharashtra 411057, India"
-  ],
   availability: "Available for Software Engineering & Cloud opportunities",
   status: "Available for Opportunities",
   bio: "Building reliable full-stack applications with Java, Spring Boot, React.js, and modern cloud technologies.",
@@ -28,7 +21,7 @@ export const profileData = {
     "In addition to core backend workflows, I actively build full-stack projects and work with Cloud and AWS fundamentals. I enjoy solving complex architectural challenges, developing resilient RESTful APIs, and implementing accessible, performant user interfaces."
   ],
   snapshot: {
-    currentRole: "MERN Stack + AI Intern",
+    currentPosition: "MERN Stack + AI Intern",
     primaryFocus: "Full Stack Development",
     backend: "Java / Spring Boot",
     frontend: "React.js",
@@ -47,13 +40,6 @@ export const profileData = {
     github: "https://github.com/AyyajAhmad64",
     githubHandle: "AyyajAhmad64",
     locationString: "Hinjawadi, Pune, Maharashtra, India",
-    fullAddress: "Krishna Priyanka New Building, C101, 2nd Floor, The Legend Rd, Hinjawadi, Phase 1, Pune, Maharashtra 411057, India",
-    addressLines: [
-      "Krishna Priyanka New Building,",
-      "C101, 2nd Floor,",
-      "The Legend Rd, Hinjawadi, Phase 1,",
-      "Pune, Maharashtra 411057, India"
-    ],
     resumeDrive: "https://drive.google.com/file/d/12KXot7lG1r8qZ54S0iEqGudwYB9a18C8/view?usp=drivesdk",
     resumePdf: "Ayyaj Kalandar Shaikh - Resume.pdf"
   },

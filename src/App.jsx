@@ -43,6 +43,10 @@ import AdminResumePage from "./pages/admin/AdminResumePage";
 import AdminHomePage from "./pages/admin/AdminHomePage";
 import AdminRecruiterPage from "./pages/admin/AdminRecruiterPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
+import AdminMessagesPage from "./pages/admin/AdminMessagesPage";
+import AdminAuditPage from "./pages/admin/AdminAuditPage";
+import AdminVersionsPage from "./pages/admin/AdminVersionsPage";
+
 import { PortfolioDataProvider } from "./context/PortfolioDataContext";
 
 export default function App() {
@@ -52,63 +56,66 @@ export default function App() {
         <ModeProvider>
           <BrowserRouter>
             <Routes>
-            {/* Public Portfolio View */}
-            <Route path="/" element={<RootLayout />}>
-              <Route index element={<HomePage />} />
-              <Route path="about" element={<AboutPage />} />
-              <Route path="skills" element={<SkillsPage />} />
-              <Route path="experience" element={<ExperiencePage />} />
-              <Route path="projects" element={<ProjectsPage />} />
-              <Route path="projects/:slug" element={<ProjectDetailPage />} />
-              <Route path="education" element={<EducationPage />} />
-              <Route path="achievements" element={<AchievementsPage />} />
-              <Route path="achievements/:slug" element={<AchievementDetailPage />} />
-              <Route path="certifications" element={<CertificationsPage />} />
-              <Route path="gallery" element={<GalleryPage />} />
-              <Route path="contact" element={<ContactPage />} />
-              <Route path="resume" element={<ResumePage />} />
-            </Route>
+              {/* Public Portfolio View */}
+              <Route path="/" element={<RootLayout />}>
+                <Route index element={<HomePage />} />
+                <Route path="about" element={<AboutPage />} />
+                <Route path="skills" element={<SkillsPage />} />
+                <Route path="experience" element={<ExperiencePage />} />
+                <Route path="projects" element={<ProjectsPage />} />
+                <Route path="projects/:slug" element={<ProjectDetailPage />} />
+                <Route path="education" element={<EducationPage />} />
+                <Route path="achievements" element={<AchievementsPage />} />
+                <Route path="achievements/:slug" element={<AchievementDetailPage />} />
+                <Route path="certifications" element={<CertificationsPage />} />
+                <Route path="gallery" element={<GalleryPage />} />
+                <Route path="contact" element={<ContactPage />} />
+                <Route path="resume" element={<ResumePage />} />
+              </Route>
 
-            {/* Dedicated Recruiter Portal */}
-            <Route path="/recruiter" element={<RecruiterLayout />}>
-              <Route index element={<Navigate to="/recruiter/overview" replace />} />
-              <Route path="overview" element={<RecruiterOverviewPage />} />
-            </Route>
+              {/* Dedicated Recruiter Portal */}
+              <Route path="/recruiter" element={<RecruiterLayout />}>
+                <Route index element={<Navigate to="/recruiter/overview" replace />} />
+                <Route path="overview" element={<RecruiterOverviewPage />} />
+              </Route>
 
-            {/* Admin CMS Authentication */}
-            <Route path="/admin/login" element={<AdminLoginPage />} />
+              {/* Admin CMS Authentication */}
+              <Route path="/admin/login" element={<AdminLoginPage />} />
 
-            {/* Protected Admin CMS Operations */}
-            <Route
-              path="/admin"
-              element={
-                <AdminProtectedRoute>
-                  <AdminLayout />
-                </AdminProtectedRoute>
-              }
-            >
-              <Route index element={<AdminDashboardPage />} />
-              <Route path="profile" element={<AdminProfilePage />} />
-              <Route path="projects" element={<AdminProjectsPage />} />
-              <Route path="experience" element={<AdminExperiencePage />} />
-              <Route path="education" element={<AdminEducationPage />} />
-              <Route path="skills" element={<AdminSkillsPage />} />
-              <Route path="certifications" element={<AdminCertificationsPage />} />
-              <Route path="achievements" element={<AdminAchievementsPage />} />
-              <Route path="gallery" element={<AdminGalleryPage />} />
-              <Route path="media" element={<AdminMediaPage />} />
-              <Route path="resume" element={<AdminResumePage />} />
-              <Route path="home" element={<AdminHomePage />} />
-              <Route path="recruiter" element={<AdminRecruiterPage />} />
-              <Route path="settings" element={<AdminSettingsPage />} />
-            </Route>
+              {/* Protected Admin CMS Operations */}
+              <Route
+                path="/admin"
+                element={
+                  <AdminProtectedRoute>
+                    <AdminLayout />
+                  </AdminProtectedRoute>
+                }
+              >
+                <Route index element={<AdminDashboardPage />} />
+                <Route path="messages" element={<AdminMessagesPage />} />
+                <Route path="profile" element={<AdminProfilePage />} />
+                <Route path="projects" element={<AdminProjectsPage />} />
+                <Route path="experience" element={<AdminExperiencePage />} />
+                <Route path="education" element={<AdminEducationPage />} />
+                <Route path="skills" element={<AdminSkillsPage />} />
+                <Route path="certifications" element={<AdminCertificationsPage />} />
+                <Route path="achievements" element={<AdminAchievementsPage />} />
+                <Route path="gallery" element={<AdminGalleryPage />} />
+                <Route path="media" element={<AdminMediaPage />} />
+                <Route path="resume" element={<AdminResumePage />} />
+                <Route path="home" element={<AdminHomePage />} />
+                <Route path="recruiter" element={<AdminRecruiterPage />} />
+                <Route path="versions" element={<AdminVersionsPage />} />
+                <Route path="audit" element={<AdminAuditPage />} />
+                <Route path="settings" element={<AdminSettingsPage />} />
+              </Route>
 
-            {/* 404 Catch-All */}
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </BrowserRouter>
-      </ModeProvider>
-    </AdminAuthProvider>
-  </PortfolioDataProvider>
+              {/* 404 Catch-All */}
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </BrowserRouter>
+        </ModeProvider>
+      </AdminAuthProvider>
+    </PortfolioDataProvider>
   );
 }

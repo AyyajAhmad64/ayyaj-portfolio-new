@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getMedia, saveMediaItem, deleteMediaItem } from "../../services/dataService";
+import { uploadMediaFile } from "../../services/supabaseService";
+import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import Button from "../../components/Button";
 import SEO from "../../components/SEO";
 
@@ -7,9 +9,11 @@ export default function AdminMediaPage() {
   const [mediaList, setMediaList] = useState([]);
   const [notice, setNotice] = useState("");
   const [copiedId, setCopiedId] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
   const [newItem, setNewItem] = useState({
     name: "",
     url: "",
+    storagePath: "",
     type: "image/jpeg",
     size: ""
   });
@@ -34,7 +38,7 @@ export default function AdminMediaPage() {
     }, 2500);
   };
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -42,13 +46,36 @@ export default function AdminMediaPage() {
       ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
       : `${Math.round(file.size / 1024)} KB`;
 
-    // For images, generate preview Data URL
+    const bucket = file.type === "application/pdf" ? "resume" : "portfolio-media";
+
+    if (isSupabaseConfigured()) {
+      setIsUploading(true);
+      try {
+        const uploadRes = await uploadMediaFile(file, bucket, "media");
+        setNewItem({
+          name: file.name,
+          url: uploadRes.url,
+          storagePath: uploadRes.path,
+          type: file.type || "application/octet-stream",
+          size: sizeStr
+        });
+        setNotice(`Uploaded "${file.name}" to Supabase Storage (${bucket})`);
+        setIsUploading(false);
+        return;
+      } catch (err) {
+        console.warn("Direct cloud upload failed, falling back to local preview:", err);
+        setIsUploading(false);
+      }
+    }
+
+    // Fallback if Supabase is unconfigured
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (event) => {
         setNewItem({
           name: file.name,
           url: event.target.result,
+          storagePath: "",
           type: file.type,
           size: sizeStr
         });
@@ -58,6 +85,7 @@ export default function AdminMediaPage() {
       setNewItem({
         name: file.name,
         url: `/${file.name}`,
+        storagePath: "",
         type: file.type || "application/octet-stream",
         size: sizeStr
       });
@@ -74,17 +102,17 @@ export default function AdminMediaPage() {
     });
 
     await loadMedia();
-    setNewItem({ name: "", url: "", type: "image/jpeg", size: "" });
+    setNewItem({ name: "", url: "", storagePath: "", type: "image/jpeg", size: "" });
     setShowAddForm(false);
-    setNotice(`Media asset "${newItem.name}" added successfully.`);
+    setNotice(`Media asset "${newItem.name}" saved to library.`);
     setTimeout(() => setNotice(""), 3000);
   };
 
-  const handleDelete = async (id, name) => {
-    if (window.confirm(`Delete media asset "${name}"?`)) {
-      await deleteMediaItem(id);
+  const handleDelete = async (item) => {
+    if (window.confirm(`Delete media asset "${item.name}"?`)) {
+      await deleteMediaItem(item.id, item.storagePath);
       await loadMedia();
-      setNotice(`Media asset "${name}" removed.`);
+      setNotice(`Media asset "${item.name}" removed.`);
       setTimeout(() => setNotice(""), 3000);
     }
   };
@@ -98,7 +126,7 @@ export default function AdminMediaPage() {
           <span className="section-micro-label">STORAGE &amp; ASSETS</span>
           <h1 className="admin-page-title">Media Library</h1>
           <p className="admin-page-desc">
-            Store and manage references to profile photography, project thumbnails, document PDFs, and brand assets.
+            Store and manage assets in Supabase Cloud Storage (portfolio-media &amp; resume buckets). Upload photography, project screenshots, documents, and obtain instant public URLs.
           </p>
         </div>
 
@@ -125,17 +153,23 @@ export default function AdminMediaPage() {
 
       {showAddForm && (
         <div className="card" style={{ marginBottom: "28px", border: "2px solid var(--accent-cyan)" }}>
-          <h2 className="section-title-sm" style={{ marginBottom: "16px" }}>Add Media Asset</h2>
+          <h2 className="section-title-sm" style={{ marginBottom: "16px" }}>Upload Media Asset</h2>
           <form onSubmit={handleSaveItem} style={{ display: "grid", gap: "16px" }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
               <div>
-                <label className="admin-label">FILE SELECTOR (AUTOMATIC URL &amp; SIZE EXTRACTION)</label>
+                <label className="admin-label">FILE SELECTOR (UPLOADS DIRECTLY TO SUPABASE STORAGE)</label>
                 <input
                   type="file"
                   onChange={handleFileUpload}
+                  disabled={isUploading}
                   className="admin-input"
                   style={{ padding: "8px" }}
                 />
+                {isUploading && (
+                  <span style={{ fontSize: "12px", color: "var(--accent-amber)", marginTop: "4px", display: "block" }}>
+                    Uploading to cloud bucket...
+                  </span>
+                )}
               </div>
 
               <div>
@@ -153,7 +187,7 @@ export default function AdminMediaPage() {
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
               <div>
-                <label className="admin-label">URL OR PATH (RELATIVE OR ABSOLUTE)</label>
+                <label className="admin-label">PUBLIC URL OR PATH</label>
                 <input
                   type="text"
                   required
@@ -177,7 +211,7 @@ export default function AdminMediaPage() {
             </div>
 
             <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
-              <Button type="submit" variant="primary">
+              <Button type="submit" variant="primary" disabled={isUploading}>
                 Save Asset to Media Library
               </Button>
               <Button onClick={() => setShowAddForm(false)} variant="outline">
@@ -248,28 +282,37 @@ export default function AdminMediaPage() {
                     color: "var(--accent-cyan)",
                     fontFamily: "var(--font-mono)",
                     wordBreak: "break-all",
-                    background: "rgba(0,0,0,0.3)",
+                    background: "var(--bg-base)",
                     padding: "6px 8px",
-                    borderRadius: "4px",
-                    marginBottom: "12px"
+                    borderRadius: "var(--radius-sm)",
+                    marginBottom: "12px",
+                    border: "1px solid var(--border-subtle)"
                   }}
                 >
-                  {item.url.length > 50 ? `${item.url.slice(0, 47)}...` : item.url}
+                  {item.url}
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: "8px", borderTop: "1px solid var(--border-subtle)", paddingTop: "12px" }}>
-                <Button
-                  onClick={() => handleCopyUrl(item)}
-                  variant="outline"
-                  size="sm"
-                  style={{ flex: 1, justifyContent: "center" }}
-                >
-                  {copiedId === item.id ? "✓ Copied!" : "Copy Path"}
-                </Button>
+              <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
                 <button
                   type="button"
-                  onClick={() => handleDelete(item.id, item.name)}
+                  onClick={() => handleCopyUrl(item)}
+                  className="btn btn-outline btn-sm"
+                  style={{ flex: 1 }}
+                >
+                  {copiedId === item.id ? "✓ Copied" : "Copy URL"}
+                </button>
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-ghost btn-sm"
+                >
+                  Open ↗
+                </a>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(item)}
                   className="btn btn-ghost btn-sm"
                   style={{ color: "#f87171" }}
                   aria-label={`Delete ${item.name}`}
@@ -284,4 +327,3 @@ export default function AdminMediaPage() {
     </div>
   );
 }
-

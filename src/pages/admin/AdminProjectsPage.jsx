@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { getProjects, saveProject, deleteProject } from "../../services/dataService";
+import { uploadMediaFile } from "../../services/supabaseService";
+import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import ProjectThumbnail from "../../components/ProjectThumbnail";
 import Button from "../../components/Button";
 import SEO from "../../components/SEO";
@@ -10,6 +12,7 @@ export default function AdminProjectsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [notice, setNotice] = useState("");
   const [newImageUrl, setNewImageUrl] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   const loadProjects = async () => {
     const list = await getProjects();
@@ -27,6 +30,7 @@ export default function AdminProjectsPage() {
     category: ["Full Stack"],
     stack: "React.js / JavaScript / REST APIs",
     status: "In Development",
+    publicationStatus: "published",
     featured: false,
     description: "",
     problem: "",
@@ -45,6 +49,7 @@ export default function AdminProjectsPage() {
   const handleEdit = (p) => {
     setEditingProject({
       ...p,
+      publicationStatus: p.publicationStatus || p.publication_status || "published",
       images: Array.isArray(p.images) ? [...p.images] : (p.thumbnail ? [p.thumbnail] : []),
       categoryStr: Array.isArray(p.category) ? p.category.join(", ") : p.category || "",
       techStr: Array.isArray(p.technologies) ? p.technologies.join(", ") : "",
@@ -74,7 +79,8 @@ export default function AdminProjectsPage() {
       category: editingProject.categoryStr.split(",").map((s) => s.trim()).filter(Boolean),
       technologies: editingProject.techStr.split(",").map((s) => s.trim()).filter(Boolean),
       features: editingProject.featuresStr.split("\n").map((s) => s.trim()).filter(Boolean),
-      slug: editingProject.slug || editingProject.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")
+      slug: editingProject.slug || editingProject.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      publicationStatus: editingProject.publicationStatus || "published"
     };
 
     delete payload.categoryStr;
@@ -107,7 +113,7 @@ export default function AdminProjectsPage() {
           <span className="section-micro-label">PORTFOLIO REGISTRY</span>
           <h1 className="admin-page-title">Projects Management</h1>
           <p className="admin-page-desc">
-            Add new projects, update specifications, toggle featured highlights, and configure case studies.
+            Add new projects, update specifications, configure publication statuses (draft/published/archived), and upload screenshot galleries to Supabase Cloud Storage.
           </p>
         </div>
 
@@ -173,7 +179,7 @@ export default function AdminProjectsPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
               <div>
                 <label className="admin-label">PROJECT TYPE / SUBTITLE</label>
                 <input
@@ -186,7 +192,7 @@ export default function AdminProjectsPage() {
               </div>
 
               <div>
-                <label className="admin-label">STATUS</label>
+                <label className="admin-label">DEVELOPMENT STATUS</label>
                 <select
                   value={editingProject.status}
                   onChange={(e) => setEditingProject({ ...editingProject, status: e.target.value })}
@@ -195,6 +201,20 @@ export default function AdminProjectsPage() {
                   <option value="In Development">In Development</option>
                   <option value="Completed">Completed</option>
                   <option value="Active Maintenance">Active Maintenance</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="admin-label">PUBLICATION VISIBILITY</label>
+                <select
+                  value={editingProject.publicationStatus || "published"}
+                  onChange={(e) => setEditingProject({ ...editingProject, publicationStatus: e.target.value })}
+                  className="admin-input"
+                  style={{ fontWeight: "600" }}
+                >
+                  <option value="published">🟢 Published (Publicly Visible)</option>
+                  <option value="draft">🟡 Draft (Admin Only)</option>
+                  <option value="archived">⚪ Archived</option>
                 </select>
               </div>
             </div>
@@ -332,7 +352,7 @@ export default function AdminProjectsPage() {
                   Primary Thumbnail &amp; Screenshot Gallery
                 </h3>
                 <p style={{ fontSize: "12px", color: "var(--text-muted)", margin: 0 }}>
-                  Upload high-resolution screenshots or provide asset URLs. The primary thumbnail is used on portfolio cards, while all gallery screenshots appear in the interactive Project Detail carousel and fullscreen lightbox.
+                  Upload screenshots directly to Supabase Storage (portfolio-media bucket) or provide asset URLs. The primary thumbnail is used on portfolio cards, while all gallery screenshots appear in the interactive Project Detail carousel and fullscreen lightbox.
                 </p>
               </div>
 
@@ -363,14 +383,34 @@ export default function AdminProjectsPage() {
 
                 <div style={{ display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap" }}>
                   <label className="btn btn-outline btn-sm" style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <span>📁 Upload Cover File</span>
+                    <span>📁 {isUploading ? "Uploading..." : "Upload Cover to Cloud"}</span>
                     <input
                       type="file"
                       accept="image/*"
+                      disabled={isUploading}
                       style={{ display: "none" }}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (!file) return;
+                        setIsUploading(true);
+
+                        if (isSupabaseConfigured()) {
+                          try {
+                            const res = await uploadMediaFile(file, "portfolio-media", "projects");
+                            const val = res.url;
+                            const currentImgs = Array.isArray(editingProject.images) ? editingProject.images : [];
+                            setEditingProject({
+                              ...editingProject,
+                              thumbnail: val,
+                              images: currentImgs.includes(val) ? currentImgs : [val, ...currentImgs]
+                            });
+                            setIsUploading(false);
+                            return;
+                          } catch (err) {
+                            console.warn("Cloud upload failed, falling back to FileReader:", err);
+                          }
+                        }
+
                         const reader = new FileReader();
                         reader.onload = (ev) => {
                           const val = ev.target.result;
@@ -380,13 +420,14 @@ export default function AdminProjectsPage() {
                             thumbnail: val,
                             images: currentImgs.includes(val) ? currentImgs : [val, ...currentImgs]
                           });
+                          setIsUploading(false);
                         };
                         reader.readAsDataURL(file);
                       }}
                     />
                   </label>
                   <span style={{ fontSize: "11px", color: "var(--text-dim)" }}>
-                    PNG, JPG, WebP. If empty, the intentional architectural blueprint is displayed automatically.
+                    PNG, JPG, WebP. Files are uploaded directly to Supabase Storage.
                   </span>
                 </div>
               </div>
@@ -404,32 +445,54 @@ export default function AdminProjectsPage() {
                   </div>
 
                   <label className="btn btn-primary btn-sm" style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                    <span>+ Upload Screenshots</span>
+                    <span>+ {isUploading ? "Uploading..." : "Upload Screenshots to Cloud"}</span>
                     <input
                       type="file"
                       accept="image/*"
                       multiple
+                      disabled={isUploading}
                       style={{ display: "none" }}
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const files = Array.from(e.target.files || []);
                         if (!files.length) return;
-                        files.forEach((file) => {
+                        setIsUploading(true);
+
+                        for (const file of files) {
+                          if (isSupabaseConfigured()) {
+                            try {
+                              const res = await uploadMediaFile(file, "portfolio-media", "projects");
+                              const newSrc = res.url;
+                              setEditingProject((prev) => {
+                                const curr = Array.isArray(prev.images) ? prev.images : [];
+                                if (curr.includes(newSrc)) return prev;
+                                return {
+                                  ...prev,
+                                  images: [...curr, newSrc],
+                                  thumbnail: prev.thumbnail || newSrc
+                                };
+                              });
+                              continue;
+                            } catch (err) {
+                              console.warn("Cloud upload error, falling back to local:", err);
+                            }
+                          }
+
                           const reader = new FileReader();
                           reader.onload = (ev) => {
                             const newSrc = ev.target.result;
                             setEditingProject((prev) => {
                               const curr = Array.isArray(prev.images) ? prev.images : [];
                               if (curr.includes(newSrc)) return prev;
-                              const updated = [...curr, newSrc];
                               return {
                                 ...prev,
-                                images: updated,
+                                images: [...curr, newSrc],
                                 thumbnail: prev.thumbnail || newSrc
                               };
                             });
                           };
                           reader.readAsDataURL(file);
-                        });
+                        }
+                        setIsUploading(false);
                       }}
                     />
                   </label>
@@ -612,69 +675,94 @@ export default function AdminProjectsPage() {
 
       {/* Projects Table / Card List */}
       <div style={{ display: "grid", gap: "16px" }}>
-        {projects.map((p, idx) => (
-          <div key={p.id} className="card admin-project-row">
-            <div style={{ display: "flex", gap: "18px", alignItems: "center", flexWrap: "wrap" }}>
-              {/* Thumbnail or Generated Fallback */}
-              <div style={{ width: "120px", flexShrink: 0 }}>
-                <ProjectThumbnail project={p} />
-              </div>
+        {projects.map((p, idx) => {
+          const pubStatus = p.publicationStatus || p.publication_status || "published";
+          return (
+            <div key={p.id} className="card admin-project-row">
+              <div style={{ display: "flex", gap: "18px", alignItems: "center", flexWrap: "wrap" }}>
+                {/* Thumbnail or Generated Fallback */}
+                <div style={{ width: "120px", flexShrink: 0 }}>
+                  <ProjectThumbnail project={p} />
+                </div>
 
-              <div style={{ flex: "1 1 280px", minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "4px" }}>
-                  <span style={{ fontSize: "12px", color: "var(--accent-amber)", fontWeight: "700" }}>
-                    #{String(projects.length - idx).padStart(2, "0")}
-                  </span>
-                  <h3 style={{ fontSize: "16px", color: "var(--text-bright)", margin: 0 }}>{p.title}</h3>
-                  {p.featured && (
-                    <span style={{ fontSize: "10.5px", padding: "2px 6px", borderRadius: "4px", background: "var(--accent-amber-soft)", color: "var(--accent-amber)", fontWeight: "700" }}>
-                      FEATURED
+                <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "12px", color: "var(--accent-amber)", fontWeight: "700" }}>
+                      #{String(projects.length - idx).padStart(2, "0")}
                     </span>
-                  )}
-                  <span className={`project-status ${p.status.toLowerCase().includes("dev") ? "in-development" : "completed"}`}>
-                    {p.status}
-                  </span>
+                    <h3 style={{ fontSize: "16px", color: "var(--text-bright)", margin: 0 }}>{p.title}</h3>
+                    {p.featured && (
+                      <span style={{ fontSize: "10.5px", padding: "2px 6px", borderRadius: "4px", background: "var(--accent-amber-soft)", color: "var(--accent-amber)", fontWeight: "700" }}>
+                        FEATURED
+                      </span>
+                    )}
+                    <span className={`project-status ${p.status.toLowerCase().includes("dev") ? "in-development" : "completed"}`}>
+                      {p.status}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "10.5px",
+                        fontWeight: "700",
+                        padding: "2px 6px",
+                        borderRadius: "4px",
+                        background:
+                          pubStatus === "published"
+                            ? "rgba(16, 185, 129, 0.15)"
+                            : pubStatus === "draft"
+                            ? "rgba(245, 158, 11, 0.15)"
+                            : "rgba(100, 116, 139, 0.15)",
+                        color:
+                          pubStatus === "published"
+                            ? "var(--accent-emerald)"
+                            : pubStatus === "draft"
+                            ? "var(--accent-amber)"
+                            : "var(--text-dim)",
+                        border: "1px solid currentColor"
+                      }}
+                    >
+                      {pubStatus.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: "12.5px", color: "var(--accent-cyan)", marginBottom: "4px" }}>
+                    {p.type}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "6px" }}>
+                    Stack: {p.stack}
+                  </div>
+                  <div style={{ fontSize: "11.5px", color: "var(--text-dim)" }}>
+                    Slug: <code style={{ color: "var(--text-main)" }}>/projects/{p.slug}</code>
+                  </div>
                 </div>
 
-                <div style={{ fontSize: "12.5px", color: "var(--accent-cyan)", marginBottom: "4px" }}>
-                  {p.type}
+                <div style={{ display: "flex", gap: "8px", alignItems: "center", marginLeft: "auto" }}>
+                  <Button onClick={() => handleEdit(p)} variant="outline" size="sm">
+                    Edit ✎
+                  </Button>
+                  <Button
+                    to={`/projects/${p.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="ghost"
+                    size="sm"
+                  >
+                    View ↗
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(p.id, p.title)}
+                    className="btn btn-ghost btn-sm"
+                    style={{ color: "#f87171" }}
+                    aria-label={`Delete ${p.title}`}
+                  >
+                    Delete ✕
+                  </button>
                 </div>
-                <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "6px" }}>
-                  Stack: {p.stack}
-                </div>
-                <div style={{ fontSize: "11.5px", color: "var(--text-dim)" }}>
-                  Slug: <code style={{ color: "var(--text-main)" }}>/projects/{p.slug}</code>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: "8px", alignItems: "center", marginLeft: "auto" }}>
-                <Button onClick={() => handleEdit(p)} variant="outline" size="sm">
-                  Edit ✎
-                </Button>
-                <Button
-                  to={`/projects/${p.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="ghost"
-                  size="sm"
-                >
-                  View ↗
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(p.id, p.title)}
-                  className="btn btn-ghost btn-sm"
-                  style={{ color: "#f87171" }}
-                  aria-label={`Delete ${p.title}`}
-                >
-                  Delete ✕
-                </button>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
 }
-

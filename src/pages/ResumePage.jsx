@@ -1,6 +1,9 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { usePortfolioData } from "../context/PortfolioDataContext";
+import { fetchActiveResumeVersion } from "../services/supabaseService";
+import { isSupabaseConfigured } from "../lib/supabaseClient";
+import { logAnalyticsEvent } from "../services/supabaseService";
 import PageHeader from "../components/PageHeader";
 import Button from "../components/Button";
 import SEO from "../components/SEO";
@@ -8,8 +11,35 @@ import SEO from "../components/SEO";
 export default function ResumePage() {
   const { profile } = usePortfolioData();
   const contact = profile?.contact || {};
-  const resumeFileName = contact.resumePdf || "Ayyaj Kalandar Shaikh - Resume.pdf";
-  const pdfUrl = `/${encodeURIComponent(resumeFileName)}`;
+
+  const [activeResume, setActiveResume] = useState(null);
+
+  // Fetch the active resume version from Supabase Storage
+  useEffect(() => {
+    if (isSupabaseConfigured()) {
+      fetchActiveResumeVersion().then((v) => {
+        if (v?.public_url || v?.file_url) setActiveResume(v);
+      });
+    }
+    // Log resume view
+    logAnalyticsEvent("resume_view", "/resume", {});
+  }, []);
+
+  // Prefer Supabase-hosted active resume, then profile contact link, then static fallback
+  const resolvedUrl =
+    activeResume?.public_url ||
+    activeResume?.file_url ||
+    contact.resumePdf ||
+    "/Ayyaj Kalandar Shaikh - Resume.pdf";
+
+  const resolvedFileName =
+    activeResume?.file_name ||
+    contact.resumePdfName ||
+    "Ayyaj Kalandar Shaikh - Resume.pdf";
+
+  const pdfUrl = resolvedUrl.startsWith("http")
+    ? resolvedUrl
+    : `/${encodeURIComponent(resolvedUrl)}`;
 
   return (
     <>
@@ -56,15 +86,25 @@ export default function ResumePage() {
       >
         <div>
           <div style={{ fontSize: "14.5px", fontWeight: "700", color: "var(--text-bright)" }}>
-            {resumeFileName}
+            {resolvedFileName}
           </div>
           <div style={{ fontSize: "12px", color: "var(--text-dim)", marginTop: "2px" }}>
             Format: Standard PDF Document · Verified for Software Engineering &amp; Cloud Opportunities
+            {activeResume?.version && (
+              <span style={{ marginLeft: "8px", color: "var(--accent-emerald)" }}>
+                · {activeResume.version}
+              </span>
+            )}
           </div>
         </div>
 
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <Button href={pdfUrl} download={resumeFileName} variant="primary">
+          <Button
+            href={pdfUrl}
+            download={resolvedFileName}
+            variant="primary"
+            onClick={() => logAnalyticsEvent("resume_download", "/resume", {})}
+          >
             Download Resume (PDF) ↓
           </Button>
 
@@ -94,7 +134,7 @@ export default function ResumePage() {
         <div className="resume-viewer-header">
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <span style={{ color: "var(--accent-emerald)" }}>●</span>
-            <span>Document Preview: {resumeFileName}</span>
+            <span>Document Preview: {resolvedFileName}</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <span style={{ fontSize: "11px", color: "var(--text-dim)" }}>A4 Standard</span>
@@ -144,7 +184,13 @@ export default function ResumePage() {
           <Button to="/experience" variant="outline" size="sm">
             View Experience →
           </Button>
-          <Button href={pdfUrl} download={resumeFileName} variant="primary" size="sm">
+          <Button
+            href={pdfUrl}
+            download={resolvedFileName}
+            variant="primary"
+            size="sm"
+            onClick={() => logAnalyticsEvent("resume_download", "/resume", {})}
+          >
             Download PDF File ↓
           </Button>
         </div>

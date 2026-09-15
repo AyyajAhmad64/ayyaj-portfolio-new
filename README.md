@@ -75,11 +75,9 @@ The manual covers:
   - Collapsible technical accordion for engineering challenges and solutions.
 - **Recruiter Mode vs Developer Portfolio Mode**: One-tap toggle for executive 30-second briefing vs deep architectural breakdown.
 - **Interactive AI Assistant**: Embedded query modal indexing candidate skills, education, projects, and contact info.
-- **Full Address Accuracy**:
+- **Location & Work Base**:
   ```
-  Krishna Priyanka New Building, C101, 2nd Floor,
-  The Legend Rd, Hinjawadi, Phase 1,
-  Pune, Maharashtra 411057, India
+  Hinjawadi, Pune, Maharashtra, India
   ```
 
 ---

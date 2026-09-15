@@ -1,58 +1,128 @@
+/**
+ * Admin Authentication Context
+ *
+ * Authentication model:
+ * - Supabase Auth is the SOLE authentication mechanism.
+ * - No local credential fallback. No hardcoded passwords. No env-var passwords.
+ * - The database `admin_users` table + RLS is the real security boundary.
+ * - Session is persisted by Supabase client automatically via localStorage.
+ * - On load: restores session from Supabase (getSession), then subscribes to changes.
+ */
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
 
-const AdminAuthContext = createContext();
-
-const SESSION_KEY = "ayyaj_admin_session";
+const AdminAuthContext = createContext(null);
 
 export function AdminAuthProvider({ children }) {
-  const [adminUser, setAdminUser] = useState(() => {
-    try {
-      const raw = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch {
-      // Ignore
-    }
-    return null;
-  });
+  const [adminUser, setAdminUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const isAuthenticated = Boolean(adminUser && adminUser.token);
+  useEffect(() => {
+    let mounted = true;
 
-  const login = async (username, password, remember = false) => {
-    // Prepared for real backend POST /api/admin/login
-    // Validates against configured environment credentials
-    const expectedUser = import.meta.env.VITE_ADMIN_USER || "ayyaj";
-    const expectedPass = import.meta.env.VITE_ADMIN_PASS || "ayyaj@dev2026";
-
-    if (username.trim() === expectedUser && password === expectedPass) {
-      const session = {
-        username: expectedUser,
-        role: "admin",
-        token: `adm-token-${Date.now()}`,
-        loginTime: new Date().toISOString()
-      };
-
-      if (remember) {
-        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-      } else {
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    async function initAuth() {
+      if (!isSupabaseConfigured() || !supabase) {
+        if (mounted) setLoading(false);
+        return;
       }
 
-      setAdminUser(session);
-      return { success: true };
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (mounted && session?.user) {
+          setAdminUser(buildUserObj(session.user, session.access_token));
+        }
+      } catch (err) {
+        console.warn("Supabase getSession failed:", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
     }
 
-    return { success: false, error: "Invalid username or authorization credential." };
+    initAuth();
+
+    // Subscribe to Supabase Auth state changes (handles refresh, logout, etc.)
+    let authSubscription = null;
+    if (isSupabaseConfigured() && supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          if (session?.user) {
+            setAdminUser(buildUserObj(session.user, session.access_token));
+          } else if (event === "SIGNED_OUT" || !session) {
+            setAdminUser(null);
+          }
+          // Always clear loading once we have a definitive auth event
+          if (mounted) setLoading(false);
+        }
+      );
+      authSubscription = subscription;
+    }
+
+    return () => {
+      mounted = false;
+      if (authSubscription) authSubscription.unsubscribe();
+    };
+  }, []);
+
+  /**
+   * Sign in via Supabase Auth.
+   * Accepts full email address or a bare username (which will resolve via VITE_ADMIN_EMAIL).
+   */
+  const login = async (identifier, password) => {
+    if (!isSupabaseConfigured() || !supabase) {
+      return {
+        success: false,
+        error:
+          "Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file."
+      };
+    }
+
+    const trimmed = (identifier || "").trim();
+    // Resolve full email: if identifier is just a username (no @), use configured admin email
+    const email = trimmed.includes("@")
+      ? trimmed
+      : (import.meta.env.VITE_ADMIN_EMAIL || `${trimmed}@gmail.com`);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      if (data?.user && data?.session) {
+        const userObj = buildUserObj(data.user, data.session.access_token);
+        setAdminUser(userObj);
+        return { success: true };
+      }
+
+      return { success: false, error: "Authentication failed. Please try again." };
+    } catch (err) {
+      console.error("Supabase sign in error:", err);
+      return { success: false, error: "An unexpected error occurred. Please try again." };
+    }
   };
 
-  const logout = () => {
-    sessionStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem(SESSION_KEY);
+  /**
+   * Sign out from Supabase Auth.
+   * Supabase client handles clearing the persisted session.
+   */
+  const logout = async () => {
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn("Supabase signOut error:", err);
+      }
+    }
     setAdminUser(null);
   };
 
+  const isAuthenticated = Boolean(adminUser && adminUser.token);
+
   return (
-    <AdminAuthContext.Provider value={{ adminUser, isAuthenticated, login, logout }}>
+    <AdminAuthContext.Provider value={{ adminUser, isAuthenticated, loading, login, logout }}>
       {children}
     </AdminAuthContext.Provider>
   );
@@ -67,11 +137,29 @@ export function useAdminAuth() {
 }
 
 /**
- * Route protection wrapper for all /admin/* endpoints
+ * Route protection wrapper for all /admin/* routes.
+ * Shows a neutral loading indicator while session is being restored.
+ * Redirects to /admin/login if not authenticated.
  */
 export function AdminProtectedRoute({ children }) {
-  const { isAuthenticated } = useAdminAuth();
+  const { isAuthenticated, loading } = useAdminAuth();
   const location = useLocation();
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          padding: "60px 24px",
+          textAlign: "center",
+          color: "var(--text-muted)",
+          fontFamily: "var(--font-mono)",
+          fontSize: "13px"
+        }}
+      >
+        Verifying administrator credentials...
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />;
@@ -80,3 +168,15 @@ export function AdminProtectedRoute({ children }) {
   return children;
 }
 
+// ── Internal helpers ──────────────────────────────────────────
+
+function buildUserObj(user, accessToken) {
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.email?.split("@")[0] || "Admin",
+    role: "admin",
+    token: accessToken,
+    loginTime: new Date().toISOString()
+  };
+}

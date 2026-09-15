@@ -175,7 +175,7 @@ export default function NormalHomeView() {
       <section className="compact-snapshot-strip" id="about" aria-label="Personal Developer Snapshot">
         <div className="snapshot-cell">
           <span className="snapshot-cell-label">CURRENT ROLE</span>
-          <span className="snapshot-cell-val">{profileData.snapshot?.currentRole || profileData.currentRole}</span>
+          <span className="snapshot-cell-val">{profileData.snapshot?.currentPosition || profileData.currentRole}</span>
         </div>
         <div className="snapshot-cell">
           <span className="snapshot-cell-label">PRIMARY FOCUS</span>

@@ -5,7 +5,7 @@
 > **Author**: Ayyaj Kalandar Shaikh  
 > **Role**: Full Stack Developer / Java Backend Developer / Cloud Computing  
 > **Specialization**: Java, Spring Boot, React.js, MySQL, Cloud Computing  
-> **Location**: Krishna Priyanka New Building, C101, 2nd Floor, The Legend Rd, Hinjawadi, Phase 1, Pune, Maharashtra 411057, India  
+> **Location**: Hinjawadi, Pune, Maharashtra, India  
 
 ---
 
@@ -385,11 +385,11 @@ Go to **Admin &rarr; Achievements** (`/admin/achievements`):
 ### Managing Profile & Contact Address
 Go to **Admin &rarr; Profile** (`/admin/profile`):
 - Update full name (`Ayyaj Kalandar Shaikh`), professional title, headline, and bio.
-- **Exact Full Address**: Update your exact residential/work address:
+- **Location**: Update your public city and region:
   ```
-  Krishna Priyanka New Building, C101, 2nd Floor, The Legend Rd, Hinjawadi, Phase 1, Pune, Maharashtra 411057, India
+  Hinjawadi, Pune, Maharashtra, India
   ```
-- **Social Profiles**: Update LinkedIn URL, GitHub profile URL, email address (`ayyaj.dev@example.com` or your real address), and phone number.
+- **Social Profiles**: Update LinkedIn URL, GitHub profile URL, email address (`ayyajahmad64@gmail.com`), and phone number.
 
 ---
 
@@ -551,7 +551,7 @@ Because browser `localStorage` is local to the device where you made edits, if y
 
 ### Q5: How do I contact Ayyaj for technical queries?
 - **Email**: Reach out via the contact form on `/contact` or directly via email.
-- **Address**: Krishna Priyanka New Building, C101, 2nd Floor, The Legend Rd, Hinjawadi, Phase 1, Pune, Maharashtra 411057, India.
+- **Location**: Hinjawadi, Pune, Maharashtra, India.
 - **GitHub**: [github.com/AyyajAhmad64](https://github.com/AyyajAhmad64)
 
 ---
