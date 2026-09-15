@@ -20,6 +20,27 @@ export const isSupabaseConfigured = () => {
   );
 };
 
+// Safe diagnostic info (never exposes secrets or full keys)
+export const getSupabaseDiagnostics = () => {
+  let hostname = "";
+  try {
+    hostname = supabaseUrl ? new URL(supabaseUrl).hostname : "";
+  } catch {
+    hostname = "invalid-url";
+  }
+  const keyPrefix = supabaseAnonKey ? supabaseAnonKey.slice(0, 15) : "";
+  return {
+    SUPABASE_URL: supabaseUrl && supabaseUrl.trim() !== "" ? "configured" : "missing",
+    URL_HOSTNAME: hostname,
+    SUPABASE_ANON_KEY: supabaseAnonKey && supabaseAnonKey.trim() !== "" ? "configured" : "missing",
+    KEY_FORMAT: keyPrefix.startsWith("sb_publishable_") ? "sb_publishable_" : (keyPrefix.startsWith("eyJ") ? "jwt" : (keyPrefix ? "unknown" : "none"))
+  };
+};
+
+if (typeof window !== "undefined") {
+  window.__SUPABASE_DIAGNOSTICS__ = getSupabaseDiagnostics();
+}
+
 let clientInstance = null;
 
 if (isSupabaseConfigured()) {
