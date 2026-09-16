@@ -236,7 +236,7 @@ export default function RecruiterHomeView() {
                   </span>
                 ))}
               </div>
-              <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
+              <div className="recruiter-project-actions">
                 <Button to={`/projects/${p.slug}`} variant="outline" size="sm">
                   Case Study →
                 </Button>

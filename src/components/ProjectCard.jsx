@@ -52,7 +52,7 @@ export default function ProjectCard({ project, projectNumber }) {
       )}
 
       <div className="project-actions">
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+        <div className="project-action-group">
           <Button to={`/projects/${project.slug}`} variant="outline" size="sm">
             Case Study →
           </Button>

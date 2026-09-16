@@ -830,6 +830,18 @@ export async function upsertMediaItem(item) {
     };
     if (item.id && /^[0-9a-fA-F-]{36}$/.test(item.id)) {
       payload.id = item.id;
+    } else if (payload.storage_path || payload.public_url) {
+      // Idempotency guard: if a media record with the same storage_path or public_url already exists, update it instead of duplicating
+      let query = supabase.from("media").select("id");
+      if (payload.storage_path) {
+        query = query.eq("storage_path", payload.storage_path);
+      } else {
+        query = query.eq("public_url", payload.public_url);
+      }
+      const { data: existing } = await query.maybeSingle();
+      if (existing?.id) {
+        payload.id = existing.id;
+      }
     }
     const { data, error } = await supabase.from("media").upsert(payload).select().single();
     if (error) throw error;

@@ -44,7 +44,7 @@ export default function AboutPage() {
       <DeveloperSnapshot />
 
       {/* Professional Overview & Core Architectural Focus Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.35fr) minmax(0, 1fr)", gap: "24px", marginBottom: "32px" }}>
+      <div className="about-overview-grid">
         {/* Professional Overview */}
         <article className="card" style={{ gap: "16px" }}>
           <div style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "12px" }}>
@@ -92,7 +92,7 @@ export default function AboutPage() {
       </div>
 
       {/* Engineering Philosophy & Career Direction Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "24px", marginBottom: "36px" }}>
+      <div className="about-values-grid">
         {/* Development Philosophy */}
         <section className="card" style={{ gap: "14px" }}>
           <div style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: "10px" }}>

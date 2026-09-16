@@ -8,6 +8,8 @@
   display: flex;
   flex-direction: column;
   gap: 36px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* Breadcrumb Navigation */
@@ -780,6 +782,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .flow-diagram-container {
@@ -788,6 +792,10 @@
   border-radius: var(--radius-md);
   padding: 24px 20px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .flow-steps-grid {
@@ -1124,6 +1132,36 @@
   .project-links-banner {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+@media (max-width: 640px) {
+  .flow-steps-grid {
+    flex-direction: column;
+    min-width: 0;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .flow-connector {
+    transform: rotate(90deg);
+    padding: 6px 0;
+  }
+
+  .features-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tech-groups-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .glance-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .more-projects-grid {
+    grid-template-columns: 1fr;
   }
 }
 

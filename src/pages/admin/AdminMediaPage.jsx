@@ -42,7 +42,7 @@ export default function AdminMediaPage() {
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || isUploading) return;
 
     const sizeStr = file.size > 1024 * 1024
       ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
@@ -63,20 +63,22 @@ export default function AdminMediaPage() {
           size: sizeStr
         });
         setNotice(`Uploaded "${file.name}" to Supabase Storage (${bucket})`);
-        setIsUploading(false);
       } catch (err) {
         console.error("Direct cloud upload failed:", err);
         setErrorNotice(err.message || "Cloud upload failed. File was not uploaded.");
+      } finally {
         setIsUploading(false);
+        e.target.value = "";
       }
     } else {
       setErrorNotice("Supabase is not configured. Media upload requires an active Supabase Cloud connection.");
+      e.target.value = "";
     }
   };
 
   const handleSaveItem = async (e) => {
     e.preventDefault();
-    if (!newItem.name || !newItem.url) return;
+    if (!newItem.name || !newItem.url || isSaving || isUploading) return;
 
     try {
       setIsSaving(true);
@@ -178,7 +180,7 @@ export default function AdminMediaPage() {
         <div className="card" style={{ marginBottom: "28px", border: "2px solid var(--accent-cyan)" }}>
           <h2 className="section-title-sm" style={{ marginBottom: "16px" }}>Upload Media Asset</h2>
           <form onSubmit={handleSaveItem} style={{ display: "grid", gap: "16px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">FILE SELECTOR (UPLOADS DIRECTLY TO SUPABASE STORAGE)</label>
                 <input
@@ -208,7 +210,7 @@ export default function AdminMediaPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">PUBLIC URL OR PATH</label>
                 <input
@@ -234,8 +236,8 @@ export default function AdminMediaPage() {
             </div>
 
             <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
-              <Button type="submit" variant="primary" disabled={isUploading}>
-                Save Asset to Media Library
+              <Button type="submit" variant="primary" disabled={isUploading || isSaving}>
+                {isSaving ? "Saving Asset..." : "Save Asset to Media Library"}
               </Button>
               <Button onClick={() => setShowAddForm(false)} variant="outline">
                 Cancel
@@ -246,7 +248,7 @@ export default function AdminMediaPage() {
       )}
 
       {/* Media Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
+      <div className="admin-media-grid">
         {mediaList.map((item) => {
           const isImg = item.type?.startsWith("image/") || item.url?.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i);
           return (

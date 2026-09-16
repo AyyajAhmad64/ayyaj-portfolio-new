@@ -199,16 +199,7 @@ export default function AdminRecruiterPage() {
             {metrics.map((m, idx) => (
               <div
                 key={idx}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1.5fr 1.5fr auto",
-                  gap: "10px",
-                  alignItems: "center",
-                  background: "var(--bg-card-hover)",
-                  padding: "10px 14px",
-                  borderRadius: "var(--radius-sm)",
-                  border: "1px solid var(--border-subtle)"
-                }}
+                className="admin-metric-row"
               >
                 <div>
                   <label className="admin-label" style={{ fontSize: "10px", marginBottom: "4px" }}>LABEL</label>
