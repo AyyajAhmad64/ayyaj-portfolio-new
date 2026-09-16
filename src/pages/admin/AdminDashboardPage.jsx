@@ -106,7 +106,7 @@ export default function AdminDashboardPage() {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
           <Button onClick={handleReset} variant="outline" size="sm">
             ↺ Reset to Defaults
           </Button>
@@ -217,7 +217,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Quick Action Shortcuts */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px", marginBottom: "32px" }}>
+      <div className="admin-quick-grid">
         {/* Profile Card */}
         <div className="card">
           <div className="section-row-header">

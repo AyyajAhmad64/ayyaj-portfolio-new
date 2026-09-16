@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { getProjects, saveProject, deleteProject } from "../../services/dataService";
+import { getProjects, saveProject, deleteProject, reorderProjects } from "../../services/dataService";
 import { uploadMediaFile } from "../../services/supabaseService";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import ProjectThumbnail from "../../components/ProjectThumbnail";
@@ -16,6 +16,21 @@ export default function AdminProjectsPage() {
   const [newImageUrl, setNewImageUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
+  const handleMove = async (index, direction) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= projects.length) return;
+    const reordered = [...projects];
+    const temp = reordered[index];
+    reordered[index] = reordered[targetIdx];
+    reordered[targetIdx] = temp;
+    setProjects(reordered);
+    try {
+      await reorderProjects(reordered.map((p) => p.id));
+    } catch (err) {
+      console.warn("Project reorder failed in cloud:", err);
+    }
+  };
+
   const loadProjects = async () => {
     const list = await getProjects();
     setProjects(list);
@@ -29,8 +44,8 @@ export default function AdminProjectsPage() {
     title: "",
     slug: "",
     type: "Full Stack Application",
-    category: ["Full Stack"],
-    stack: "React.js / JavaScript / REST APIs",
+    category: [],
+    stack: "",
     status: "In Development",
     publicationStatus: "published",
     featured: false,
@@ -40,9 +55,9 @@ export default function AdminProjectsPage() {
     architecture: "",
     challenges: "",
     learnings: "",
-    technologies: ["React.js", "JavaScript"],
-    features: ["Core feature 1", "Core feature 2"],
-    github: "https://github.com/AyyajAhmad64",
+    technologies: [],
+    features: [],
+    github: "",
     liveDemo: "",
     thumbnail: "",
     images: []
@@ -64,9 +79,9 @@ export default function AdminProjectsPage() {
     setEditingProject({
       ...emptyProject,
       images: [],
-      categoryStr: "Full Stack, React / JavaScript",
-      techStr: "React.js, JavaScript, REST APIs",
-      featuresStr: "Feature one\nFeature two\nFeature three"
+      categoryStr: "",
+      techStr: "",
+      featuresStr: ""
     });
     setIsCreating(true);
   };
@@ -199,7 +214,7 @@ export default function AdminProjectsPage() {
           </div>
 
           <form onSubmit={handleSave} style={{ display: "grid", gap: "16px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">PROJECT TITLE</label>
                 <input
@@ -223,7 +238,7 @@ export default function AdminProjectsPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">PROJECT TYPE / SUBTITLE</label>
                 <input
@@ -263,7 +278,7 @@ export default function AdminProjectsPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">CATEGORIES (COMMA-SEPARATED)</label>
                 <input
@@ -284,22 +299,23 @@ export default function AdminProjectsPage() {
                   value={editingProject.stack}
                   onChange={(e) => setEditingProject({ ...editingProject, stack: e.target.value })}
                   className="admin-input"
+                  placeholder="React.js · Spring Boot · MySQL"
                 />
               </div>
             </div>
 
             <div>
-              <label className="admin-label">SHORT OVERVIEW DESCRIPTION</label>
+              <label className="admin-label">SHORT OVERVIEW / SUMMARY (PROJECT CARD BIO)</label>
               <textarea
                 rows={2}
                 required
-                value={editingProject.description}
-                onChange={(e) => setEditingProject({ ...editingProject, description: e.target.value })}
+                value={editingProject.overview}
+                onChange={(e) => setEditingProject({ ...editingProject, overview: e.target.value })}
                 className="admin-textarea"
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">THE PROBLEM / CHALLENGE (OPTIONAL)</label>
                 <textarea
@@ -321,7 +337,7 @@ export default function AdminProjectsPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">SYSTEM ARCHITECTURE DETAILS</label>
                 <textarea
@@ -364,7 +380,7 @@ export default function AdminProjectsPage() {
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">GITHUB REPOSITORY URL</label>
                 <input
@@ -705,7 +721,7 @@ export default function AdminProjectsPage() {
               </label>
             </div>
 
-            <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+            <div className="admin-form-actions">
               <Button type="submit" variant="primary">
                 Save Project
               </Button>
@@ -723,29 +739,55 @@ export default function AdminProjectsPage() {
           const pubStatus = p.publicationStatus || p.publication_status || "published";
           return (
             <div key={p.id} className="card admin-project-row">
-              <div style={{ display: "flex", gap: "18px", alignItems: "center", flexWrap: "wrap" }}>
+              <div className="admin-project-card-inner">
+                {/* Reorder Column */}
+                <div className="admin-project-order-col">
+                  <button
+                    type="button"
+                    onClick={() => handleMove(idx, -1)}
+                    disabled={idx === 0}
+                    className="btn btn-ghost btn-sm"
+                    style={{ padding: "3px 6px", fontSize: "11px", lineHeight: 1 }}
+                    title="Move Up"
+                    aria-label={`Move project #${idx + 1} up`}
+                  >
+                    ▲
+                  </button>
+                  <span style={{ fontSize: "11px", color: "var(--accent-amber)", fontWeight: "700", fontFamily: "var(--font-mono)" }}>
+                    #{String(idx + 1).padStart(2, "0")}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleMove(idx, 1)}
+                    disabled={idx === projects.length - 1}
+                    className="btn btn-ghost btn-sm"
+                    style={{ padding: "3px 6px", fontSize: "11px", lineHeight: 1 }}
+                    title="Move Down"
+                    aria-label={`Move project #${idx + 1} down`}
+                  >
+                    ▼
+                  </button>
+                </div>
+
                 {/* Thumbnail or Generated Fallback */}
-                <div style={{ width: "120px", flexShrink: 0 }}>
+                <div className="admin-project-thumb-col">
                   <ProjectThumbnail project={p} />
                 </div>
 
-                <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+                <div className="admin-project-content-col">
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
-                    <span style={{ fontSize: "12px", color: "var(--accent-amber)", fontWeight: "700" }}>
-                      #{String(projects.length - idx).padStart(2, "0")}
-                    </span>
-                    <h3 style={{ fontSize: "16px", color: "var(--text-bright)", margin: 0 }}>{p.title}</h3>
+                    <h3 style={{ fontSize: "15px", color: "var(--text-bright)", margin: 0 }}>{p.title}</h3>
                     {p.featured && (
-                      <span style={{ fontSize: "10.5px", padding: "2px 6px", borderRadius: "4px", background: "var(--accent-amber-soft)", color: "var(--accent-amber)", fontWeight: "700" }}>
+                      <span style={{ fontSize: "10px", padding: "2px 6px", borderRadius: "4px", background: "var(--accent-amber-soft)", color: "var(--accent-amber)", fontWeight: "700" }}>
                         FEATURED
                       </span>
                     )}
-                    <span className={`project-status ${p.status.toLowerCase().includes("dev") ? "in-development" : "completed"}`}>
+                    <span className={`project-status ${p.status?.toLowerCase().includes("dev") ? "in-development" : "completed"}`}>
                       {p.status}
                     </span>
                     <span
                       style={{
-                        fontSize: "10.5px",
+                        fontSize: "10px",
                         fontWeight: "700",
                         padding: "2px 6px",
                         borderRadius: "4px",
@@ -768,18 +810,18 @@ export default function AdminProjectsPage() {
                     </span>
                   </div>
 
-                  <div style={{ fontSize: "12.5px", color: "var(--accent-cyan)", marginBottom: "4px" }}>
+                  <div style={{ fontSize: "12px", color: "var(--accent-cyan)", marginBottom: "3px" }}>
                     {p.type}
                   </div>
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "6px" }}>
+                  <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>
                     Stack: {p.stack}
                   </div>
-                  <div style={{ fontSize: "11.5px", color: "var(--text-dim)" }}>
+                  <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>
                     Slug: <code style={{ color: "var(--text-main)" }}>/projects/{p.slug}</code>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "8px", alignItems: "center", marginLeft: "auto" }}>
+                <div className="admin-project-actions-col">
                   <Button onClick={() => handleEdit(p)} variant="outline" size="sm">
                     Edit ✎
                   </Button>

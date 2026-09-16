@@ -2,14 +2,38 @@ import React, { useState, useEffect } from "react";
 import { getProfile, updateProfile, getSettings, updateSettings } from "../../services/dataService";
 import { usePortfolioData } from "../../context/PortfolioDataContext";
 import { resolveHomeContent } from "../../utils/contentDefaults";
+import { defaultFeaturedItems } from "../../components/FeaturedSection";
 import Button from "../../components/Button";
 import SEO from "../../components/SEO";
 
+export function getDerivedCtaLabel(item) {
+  if (!item || !item.type) return "View Details →";
+  switch (item.type) {
+    case "project":
+      return "Explore Case Study →";
+    case "certification":
+      return "View Certificate →";
+    case "achievement":
+      return "View Achievement →";
+    case "experience":
+      return "View Experience →";
+    default:
+      return "View Details →";
+  }
+}
+
 export default function AdminHomePage() {
-  const { refresh } = usePortfolioData();
+  const {
+    refresh,
+    projects = [],
+    certifications = [],
+    experience = [],
+    achievements = []
+  } = usePortfolioData();
   const [profile, setProfile] = useState(null);
   const [settings, setSettings] = useState(null);
-  const [activeTab, setActiveTab] = useState("hero"); // 'hero' | 'sections' | 'principles' | 'cta'
+  const [activeTab, setActiveTab] = useState("hero"); // 'hero' | 'featured' | 'sections' | 'principles' | 'cta'
+  const [featuredList, setFeaturedList] = useState([]);
   const [notice, setNotice] = useState("");
   const [errorNotice, setErrorNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -116,9 +140,62 @@ export default function AdminHomePage() {
         primaryBtn: home.contactCtaButtonText,
         secondaryBtn: home.contactEmailButtonText
       });
+      const feats = Array.isArray(s?.featuredItems) && s.featuredItems.length > 0
+        ? s.featuredItems
+        : defaultFeaturedItems;
+      setFeaturedList(feats);
     }
     load();
   }, []);
+
+  const handleAddFeaturedItem = () => {
+    const newId = `feat-${Date.now()}`;
+    const newItem = {
+      id: newId,
+      type: "",
+      contentId: "",
+      badge: "",
+      tagline: "",
+      ctaLabel: "",
+      enabled: false,
+      sortOrder: featuredList.length + 1,
+      isNew: true
+    };
+    setFeaturedList((prev) => [...prev, newItem]);
+
+    setTimeout(() => {
+      const el = document.getElementById(newId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        const input = el.querySelector("select, input");
+        if (input) input.focus();
+      }
+    }, 100);
+  };
+
+  const handleUpdateFeaturedItem = (index, updates) => {
+    const updated = [...featuredList];
+    updated[index] = { ...updated[index], ...updates };
+    setFeaturedList(updated);
+  };
+
+  const handleDeleteFeaturedItem = (index) => {
+    const updated = featuredList.filter((_, i) => i !== index);
+    setFeaturedList(updated);
+  };
+
+  const handleMoveFeaturedItem = (index, direction) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= featuredList.length) return;
+    const updated = [...featuredList];
+    const temp = updated[index];
+    updated[index] = updated[targetIdx];
+    updated[targetIdx] = temp;
+    updated.forEach((item, i) => {
+      item.sortOrder = i + 1;
+    });
+    setFeaturedList(updated);
+  };
 
   const handleSave = async (e) => {
     e?.preventDefault();
@@ -172,7 +249,7 @@ export default function AdminHomePage() {
         currentPosition: hero.currentRole || profile?.snapshot?.currentPosition
       };
 
-      await Promise.all([
+      const [, savedSettings] = await Promise.all([
         updateProfile({
           currentRole: hero.currentRole,
           bio: hero.bio,
@@ -180,15 +257,21 @@ export default function AdminHomePage() {
           snapshot: updatedSnapshot
         }),
         updateSettings({
-          showAvailabilityBadge: hero.showAvailability
+          showAvailabilityBadge: hero.showAvailability,
+          featuredItems: featuredList
         })
       ]);
 
       setErrorNotice("");
       if (refresh) await refresh();
 
-      setNotice("✓ Home page configuration and content successfully saved to Supabase!");
-      setTimeout(() => setNotice(""), 3500);
+      if (savedSettings?.__featuredItemsPendingMigration) {
+        setNotice("✓ Saved to Supabase! (Note: Run migration 20260917000000_featured_and_gallery_sort.sql in Supabase SQL editor to persist featured_items permanently).");
+        setTimeout(() => setNotice(""), 6000);
+      } else {
+        setNotice("✓ Home page configuration and content successfully saved to Supabase!");
+        setTimeout(() => setNotice(""), 3500);
+      }
     } catch (err) {
       console.error("Failed to save home page:", err);
       setErrorNotice(err.message || "Cloud save failed. Your changes were not saved.");
@@ -200,7 +283,7 @@ export default function AdminHomePage() {
   if (!profile) return <div className="admin-page">Loading Home page settings...</div>;
 
   return (
-    <div className="admin-page">
+    <div className="admin-page" style={{ width: "100%", maxWidth: "1100px", marginInline: "auto", boxSizing: "border-box", minWidth: 0 }}>
       <SEO title="Home Page Management — Admin CMS" description="Manage homepage hero and section copy." />
 
       <div className="admin-page-header">
@@ -212,7 +295,7 @@ export default function AdminHomePage() {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <Button to="/" target="_blank" rel="noopener noreferrer" variant="outline" size="sm">
             View Live Home ↗
           </Button>
@@ -268,9 +351,10 @@ export default function AdminHomePage() {
       <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "12px", marginBottom: "24px" }}>
         {[
           { id: "hero", label: "1. Hero & Identity" },
-          { id: "sections", label: "2. Section Headings & Subtitles" },
-          { id: "principles", label: "3. How I Build (Principles)" },
-          { id: "cta", label: "4. Contact CTA Banner" }
+          { id: "featured", label: "2. Featured Showcase" },
+          { id: "sections", label: "3. Section Headings & Subtitles" },
+          { id: "principles", label: "4. How I Build (Principles)" },
+          { id: "cta", label: "5. Contact CTA Banner" }
         ].map((tab) => (
           <button
             key={tab.id}
@@ -301,7 +385,7 @@ export default function AdminHomePage() {
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">PRIMARY ROLE (HERO BAR LEFT)</label>
                 <input
@@ -350,7 +434,7 @@ export default function AdminHomePage() {
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">HERO PHOTO FRAME LABEL</label>
                 <input
@@ -399,7 +483,290 @@ export default function AdminHomePage() {
           </div>
         )}
 
-        {/* TAB 2: SECTIONS */}
+        {/* TAB 2: FEATURED SHOWCASE */}
+        {activeTab === "featured" && (
+          <div className="card" style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%", minWidth: 0, boxSizing: "border-box" }}>
+            <div className="section-row-header" style={{ flexWrap: "wrap", gap: "12px", alignItems: "flex-start" }}>
+              <div style={{ minWidth: 0, flex: "1 1 280px" }}>
+                <span className="section-micro-label" style={{ color: "var(--accent-amber)" }}>HOMEPAGE CONTENT &gt; FEATURED SHOWCASE</span>
+                <h2 className="section-title-sm" style={{ margin: "4px 0 6px" }}>Featured Showcase Curator</h2>
+                <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: 0, lineHeight: "1.5" }}>
+                  Select and arrange the flagship projects, verified credentials, and experience spotlights displayed in the home page showcase grid.
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                <Button type="button" onClick={handleAddFeaturedItem} variant="primary" size="sm">
+                  + Add Featured Item
+                </Button>
+              </div>
+            </div>
+
+            {/* List of Featured Items */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%", minWidth: 0 }}>
+              {featuredList.map((item, idx) => {
+                const isFirst = idx === 0;
+                const isLast = idx === featuredList.length - 1;
+                const isUnconfigured = !item.contentId;
+
+                return (
+                  <div
+                    key={item.id || idx}
+                    id={item.id}
+                    className={`admin-featured-card ${item.isNew || isUnconfigured ? "is-new" : ""}`}
+                  >
+                    {/* 1. Header: Order controls, Title / Status, Active toggle, Delete */}
+                    <div className="admin-featured-card-header">
+                      <div className="admin-featured-card-title-group">
+                        <span style={{ fontSize: "12px", color: "var(--accent-amber)", fontWeight: "700", fontFamily: "var(--font-mono)" }}>
+                          #{String(idx + 1).padStart(2, "0")}
+                        </span>
+                        <span style={{ fontSize: "13.5px", fontWeight: "700", color: "var(--text-bright)", textTransform: "capitalize" }}>
+                          {item.type || "Custom"} Spotlight
+                        </span>
+                        {isUnconfigured && (
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: "700",
+                              padding: "2px 6px",
+                              borderRadius: "3px",
+                              background: "rgba(56, 189, 248, 0.15)",
+                              color: "var(--accent-cyan)",
+                              border: "1px solid rgba(56, 189, 248, 0.3)",
+                              letterSpacing: "0.04em"
+                            }}
+                          >
+                            NEW / UNLINKED
+                          </span>
+                        )}
+                        <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: item.enabled !== false ? "var(--accent-emerald)" : "var(--text-muted)", cursor: "pointer" }}>
+                          <input
+                            type="checkbox"
+                            checked={item.enabled !== false}
+                            onChange={(e) => handleUpdateFeaturedItem(idx, { enabled: e.target.checked })}
+                          />
+                          <span>{item.enabled !== false ? "Active on Home" : "Inactive (Hidden)"}</span>
+                        </label>
+                      </div>
+
+                      <div className="admin-featured-card-actions">
+                        <div style={{ display: "inline-flex", gap: "4px" }}>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveFeaturedItem(idx, -1)}
+                            disabled={isFirst}
+                            title="Move item up"
+                            aria-label={`Move item ${idx + 1} up`}
+                            className="btn btn-outline btn-sm"
+                            style={{ padding: "4px 8px", fontSize: "11px", opacity: isFirst ? 0.35 : 1, cursor: isFirst ? "not-allowed" : "pointer" }}
+                          >
+                            ▲ Up
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveFeaturedItem(idx, 1)}
+                            disabled={isLast}
+                            title="Move item down"
+                            aria-label={`Move item ${idx + 1} down`}
+                            className="btn btn-outline btn-sm"
+                            style={{ padding: "4px 8px", fontSize: "11px", opacity: isLast ? 0.35 : 1, cursor: isLast ? "not-allowed" : "pointer" }}
+                          >
+                            ▼ Down
+                          </button>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFeaturedItem(idx)}
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: "#f87171", padding: "4px 8px", fontSize: "11px" }}
+                          aria-label={`Delete item ${idx + 1}`}
+                        >
+                          ✕ Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 2. Content Configuration: Type & Linked Entity */}
+                    <div className="admin-featured-form-section">
+                      <h4 className="admin-featured-section-label">1. Content Source &amp; Entity</h4>
+                      <div className="admin-featured-grid-2">
+                        <div>
+                          <label className="admin-label">CONTENT TYPE</label>
+                          <select
+                            className="admin-input"
+                            value={item.type || ""}
+                            onChange={(e) => {
+                              const newType = e.target.value;
+                              handleUpdateFeaturedItem(idx, {
+                                type: newType,
+                                contentId: ""
+                              });
+                            }}
+                          >
+                            <option value="">-- Select Content Type --</option>
+                            <option value="project">Project</option>
+                            <option value="certification">Certification / Training</option>
+                            <option value="experience">Experience Spotlight</option>
+                            <option value="achievement">Achievement / Milestone</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="admin-label">LINKED ENTITY</label>
+                          {!item.type && (
+                            <select className="admin-input" disabled value="">
+                              <option value="">-- Select content type first --</option>
+                            </select>
+                          )}
+                          {item.type === "project" && (
+                            <select
+                              className="admin-input"
+                              value={item.contentId || ""}
+                              onChange={(e) => handleUpdateFeaturedItem(idx, { contentId: e.target.value, isNew: false })}
+                            >
+                              <option value="">-- Select a project to feature --</option>
+                              {projects.map((p) => (
+                                <option key={p.id} value={p.slug || p.id}>
+                                  {p.title} ({p.type})
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                          {item.type === "certification" && (
+                            <select
+                              className="admin-input"
+                              value={item.contentId || ""}
+                              onChange={(e) => handleUpdateFeaturedItem(idx, { contentId: e.target.value, isNew: false })}
+                            >
+                              <option value="">-- Select a certification to feature --</option>
+                              {certifications.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name || c.title} ({c.issuer})
+                                </option>
+                              ))}
+                              {!certifications.some((c) => c.id === "azure-devops-cert") && (
+                                <option value="azure-devops-cert">
+                                  Mastering Azure DevOps: From Beginner to Advanced 2026 (Udemy / Uday Academy)
+                                </option>
+                              )}
+                            </select>
+                          )}
+                          {item.type === "experience" && (
+                            <select
+                              className="admin-input"
+                              value={item.contentId || ""}
+                              onChange={(e) => handleUpdateFeaturedItem(idx, { contentId: e.target.value, isNew: false })}
+                            >
+                              <option value="">-- Select an experience to feature --</option>
+                              {experience.map((e) => (
+                                <option key={e.id} value={e.id}>
+                                  {e.role} @ {e.company}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                          {item.type === "achievement" && (
+                            <select
+                              className="admin-input"
+                              value={item.contentId || ""}
+                              onChange={(e) => handleUpdateFeaturedItem(idx, { contentId: e.target.value, isNew: false })}
+                            >
+                              <option value="">-- Select an achievement to feature --</option>
+                              {achievements.map((a) => (
+                                <option key={a.id} value={a.id || a.slug}>
+                                  {a.title} ({a.organization})
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. Display Configuration: Custom Badge & CTA Label */}
+                    <div className="admin-featured-form-section">
+                      <h4 className="admin-featured-section-label">2. Card Display Badges &amp; Actions</h4>
+                      <div className="admin-featured-grid-2">
+                        <div>
+                          <label className="admin-label">CUSTOM BADGE</label>
+                          <input
+                            type="text"
+                            className="admin-input"
+                            placeholder="e.g. Flagship Platform, Industry Credential"
+                            value={item.badge || ""}
+                            onChange={(e) => handleUpdateFeaturedItem(idx, { badge: e.target.value })}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="admin-label">AUTOMATIC PRIMARY CTA</label>
+                          <div
+                            className="admin-input"
+                            style={{
+                              background: "rgba(255, 255, 255, 0.03)",
+                              color: "var(--accent-cyan)",
+                              display: "flex",
+                              alignItems: "center",
+                              fontWeight: "600",
+                              cursor: "default"
+                            }}
+                          >
+                            {getDerivedCtaLabel(item)}
+                          </div>
+                          <span style={{ fontSize: "11px", color: "var(--text-dim)", display: "block", marginTop: "4px" }}>
+                            Auto-derived from selected entity type
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4. Optional Presentation: Tagline / Summary Override */}
+                    <div className="admin-featured-form-section">
+                      <h4 className="admin-featured-section-label">3. Optional Narrative Override</h4>
+                      <div>
+                        <label className="admin-label">CUSTOM TAGLINE / SUMMARY (OPTIONAL OVERRIDE)</label>
+                        <input
+                          type="text"
+                          className="admin-input"
+                          placeholder="Leave empty to use entity's default description"
+                          value={item.tagline || ""}
+                          onChange={(e) => handleUpdateFeaturedItem(idx, { tagline: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bottom Actions for Featured Tab */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "12px",
+                paddingTop: "16px",
+                borderTop: "1px solid var(--border-subtle)"
+              }}
+            >
+              <Button type="button" onClick={handleAddFeaturedItem} variant="outline" size="sm">
+                + Add Another Item
+              </Button>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <Button to="/" target="_blank" rel="noopener noreferrer" variant="ghost" size="sm">
+                  Preview on Live Home ↗
+                </Button>
+                <Button onClick={handleSave} variant="primary" size="sm" disabled={isSaving}>
+                  {isSaving ? "Saving..." : "Save Featured Showcase"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: SECTIONS */}
         {activeTab === "sections" && (
           <div className="card" style={{ display: "grid", gap: "20px" }}>
             <h2 className="section-title-sm">Home Page Section Headings &amp; Descriptions</h2>
@@ -549,7 +916,7 @@ export default function AdminHomePage() {
 
             {principles.map((p, idx) => (
               <div key={idx} style={{ padding: "14px", background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", display: "grid", gap: "10px" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "12px" }}>
+                <div className="admin-form-grid-2">
                   <div>
                     <label className="admin-label">PRINCIPLE 0{idx + 1} TITLE</label>
                     <input
@@ -626,7 +993,7 @@ export default function AdminHomePage() {
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">PRIMARY BUTTON TEXT</label>
                 <input
@@ -653,7 +1020,7 @@ export default function AdminHomePage() {
         )}
 
         {/* Global Save Button */}
-        <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+        <div style={{ display: "flex", gap: "12px", marginTop: "8px", flexWrap: "wrap" }}>
           <Button type="submit" variant="primary" size="lg" disabled={isSaving}>
             {isSaving ? "Saving Home Changes..." : "Save Home Page Content"}
           </Button>

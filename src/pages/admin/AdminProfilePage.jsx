@@ -199,7 +199,7 @@ export default function AdminProfilePage() {
           </p>
         </div>
 
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
           <Button to="/about" target="_blank" rel="noopener noreferrer" variant="outline" size="sm">
             View Live About ↗
           </Button>
@@ -277,7 +277,7 @@ export default function AdminProfilePage() {
           <div className="card" style={{ display: "grid", gap: "16px" }}>
             <h2 className="section-title-sm">Developer Biographical Details</h2>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">FULL NAME</label>
                 <input
@@ -301,7 +301,7 @@ export default function AdminProfilePage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">PROFESSIONAL TITLE</label>
                 <input
@@ -347,7 +347,7 @@ export default function AdminProfilePage() {
               />
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">PUBLIC LOCATION (CITY, STATE, COUNTRY)</label>
                 <input
@@ -383,7 +383,7 @@ export default function AdminProfilePage() {
               These values feed into the &quot;Current Focus&quot; panel on the About page and the compact snapshot strip on the Home page.
             </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">CURRENT ROLE DISPLAY</label>
                 <input
@@ -407,7 +407,7 @@ export default function AdminProfilePage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">BACKEND STACK</label>
                 <input
@@ -431,7 +431,7 @@ export default function AdminProfilePage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">CLOUD INFRASTRUCTURE</label>
                 <input
@@ -455,7 +455,7 @@ export default function AdminProfilePage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">ACADEMIC PROGRAM</label>
                 <input
@@ -535,7 +535,7 @@ export default function AdminProfilePage() {
 
               {archFocus.map((arch, idx) => (
                 <div key={idx} style={{ padding: "14px", background: "var(--bg-elevated)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", display: "grid", gap: "10px" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "80px 1fr", gap: "12px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "minmax(60px, 80px) minmax(0, 1fr)", gap: "12px" }}>
                     <div>
                       <label className="admin-label">NUMBER</label>
                       <input
@@ -627,7 +627,7 @@ export default function AdminProfilePage() {
           <div className="card" style={{ display: "grid", gap: "16px" }}>
             <h2 className="section-title-sm">Contact Channels &amp; Social Links</h2>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">EMAIL ADDRESS</label>
                 <input
@@ -651,7 +651,7 @@ export default function AdminProfilePage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">LINKEDIN URL</label>
                 <input
@@ -673,7 +673,7 @@ export default function AdminProfilePage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">WHATSAPP LINK (wa.me/number)</label>
                 <input
@@ -698,9 +698,9 @@ export default function AdminProfilePage() {
         )}
 
         {/* Global Save Button */}
-        <div style={{ display: "flex", gap: "12px", marginTop: "8px" }}>
+        <div className="admin-form-actions">
           <Button type="submit" variant="primary" size="lg" disabled={isSaving}>
-            {isSaving ? "Saving All Content to Supabase..." : "Save About &amp; Profile Changes"}
+            {isSaving ? "Saving All Content to Supabase..." : "Save About & Profile Changes"}
           </Button>
           <Button to="/about" target="_blank" rel="noopener noreferrer" variant="outline" size="lg">
             Preview Live About Page ↗

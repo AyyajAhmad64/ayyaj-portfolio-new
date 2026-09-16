@@ -20,7 +20,7 @@ export default function AchievementsPage() {
         subtitle="Verified academic milestones, competitive selections, and educational accomplishments."
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: "20px" }}>
         {achievements.map((item) => (
           <AchievementCard key={item.id} achievement={item} />
         ))}

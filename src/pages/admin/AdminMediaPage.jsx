@@ -1,17 +1,22 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { getMedia, saveMediaItem, deleteMediaItem } from "../../services/dataService";
 import { uploadMediaFile } from "../../services/supabaseService";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
+import { usePortfolioData } from "../../context/PortfolioDataContext";
 import Button from "../../components/Button";
 import SEO from "../../components/SEO";
 
 export default function AdminMediaPage() {
+  const { refresh } = usePortfolioData();
   const [mediaList, setMediaList] = useState([]);
   const [notice, setNotice] = useState("");
   const [errorNotice, setErrorNotice] = useState("");
   const [copiedId, setCopiedId] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState("All");
+  const [previewItem, setPreviewItem] = useState(null);
   const [newItem, setNewItem] = useState({
     name: "",
     url: "",
@@ -23,12 +28,32 @@ export default function AdminMediaPage() {
 
   const loadMedia = async () => {
     const list = await getMedia();
-    setMediaList(list);
+    setMediaList(list || []);
   };
 
   useEffect(() => {
     loadMedia();
   }, []);
+
+  const filteredMedia = useMemo(() => {
+    return mediaList.filter((item) => {
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        !searchQuery ||
+        (item.name && item.name.toLowerCase().includes(q)) ||
+        (item.url && item.url.toLowerCase().includes(q));
+
+      const isImg = item.type?.startsWith("image") || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(item.url);
+      const isDoc = item.type === "application/pdf" || /\.pdf$/i.test(item.url);
+
+      const matchesType =
+        typeFilter === "All" ||
+        (typeFilter === "images" && isImg) ||
+        (typeFilter === "documents" && isDoc);
+
+      return matchesSearch && matchesType;
+    });
+  }, [mediaList, searchQuery, typeFilter]);
 
   const handleCopyUrl = (item) => {
     navigator.clipboard.writeText(item.url);
@@ -89,6 +114,13 @@ export default function AdminMediaPage() {
       });
 
       await loadMedia();
+      if (typeof refresh === "function") {
+        try {
+          await refresh();
+        } catch {
+          // non-blocking
+        }
+      }
       setNewItem({ name: "", url: "", storagePath: "", type: "image/jpeg", size: "" });
       setShowAddForm(false);
       setNotice(`Media asset "${newItem.name}" saved to library.`);
@@ -107,6 +139,13 @@ export default function AdminMediaPage() {
         setErrorNotice("");
         await deleteMediaItem(item.id, item.storagePath);
         await loadMedia();
+        if (typeof refresh === "function") {
+          try {
+            await refresh();
+          } catch {
+            // non-blocking
+          }
+        }
         setNotice(`Media asset "${item.name}" removed.`);
         setTimeout(() => setNotice(""), 3000);
       } catch (err) {
@@ -246,108 +285,304 @@ export default function AdminMediaPage() {
         </div>
       )}
 
-      {/* Media Grid */}
-      <div className="admin-media-grid">
-        {mediaList.map((item) => {
-          const isImg = item.type?.startsWith("image/") || item.url?.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i);
-          return (
-            <div key={item.id} className="card" style={{ display: "flex", flexDirection: "column", padding: "16px" }}>
-              <div
-                style={{
-                  height: "160px",
-                  background: "var(--bg-card-hover)",
-                  borderRadius: "var(--radius-sm)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                  marginBottom: "12px",
-                  border: "1px solid var(--border-subtle)"
-                }}
-              >
-                {isImg ? (
-                  <img
-                    src={item.url}
-                    alt={item.name}
-                    style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                      e.currentTarget.parentElement.innerHTML = `<span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); text-align: center; padding: 10px;">${item.name}</span>`;
-                    }}
-                  />
-                ) : (
-                  <div style={{ textAlign: "center", padding: "16px" }}>
-                    <div style={{ fontSize: "36px", marginBottom: "8px" }}>📄</div>
-                    <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
-                      {item.type || "DOCUMENT"}
-                    </span>
-                  </div>
-                )}
-              </div>
+      {/* Search and Filters */}
+      <div
+        className="card"
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          flexWrap: "wrap",
+          gap: "12px",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "20px",
+          padding: "12px 16px"
+        }}
+      >
+        <div style={{ display: "flex", gap: "10px", flex: "1 1 240px", minWidth: 0 }}>
+          <input
+            type="text"
+            className="admin-input"
+            placeholder="🔍 Search filename or URL..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: "100%" }}
+          />
+          {searchQuery && (
+            <Button size="sm" variant="ghost" onClick={() => setSearchQuery("")}>
+              Clear
+            </Button>
+          )}
+        </div>
 
-              <div style={{ flex: 1 }}>
-                <h3
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    color: "var(--text-bright)",
-                    marginBottom: "4px",
-                    wordBreak: "break-all"
-                  }}
-                >
-                  {item.name}
-                </h3>
-                <div style={{ fontSize: "11px", color: "var(--text-dim)", fontFamily: "var(--font-mono)", marginBottom: "8px" }}>
-                  {item.size} • {item.date || "Active"}
-                </div>
-                <div
-                  style={{
-                    fontSize: "11px",
-                    color: "var(--accent-cyan)",
-                    fontFamily: "var(--font-mono)",
-                    wordBreak: "break-all",
-                    background: "var(--bg-base)",
-                    padding: "6px 8px",
-                    borderRadius: "var(--radius-sm)",
-                    marginBottom: "12px",
-                    border: "1px solid var(--border-subtle)"
-                  }}
-                >
-                  {item.url}
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
-                <button
-                  type="button"
-                  onClick={() => handleCopyUrl(item)}
-                  className="btn btn-outline btn-sm"
-                  style={{ flex: 1 }}
-                >
-                  {copiedId === item.id ? "✓ Copied" : "Copy URL"}
-                </button>
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-ghost btn-sm"
-                >
-                  Open ↗
-                </a>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(item)}
-                  className="btn btn-ghost btn-sm"
-                  style={{ color: "#f87171" }}
-                  aria-label={`Delete ${item.name}`}
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-          );
-        })}
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+            Filter:
+          </span>
+          {["All", "images", "documents"].map((type) => (
+            <button
+              key={type}
+              type="button"
+              className={`btn btn-sm ${typeFilter === type ? "btn-primary" : "btn-outline"}`}
+              onClick={() => setTypeFilter(type)}
+              style={{ textTransform: "capitalize", fontSize: "11px", padding: "4px 10px" }}
+            >
+              {type === "All" ? "All" : type === "images" ? "Images" : "Documents"}
+            </button>
+          ))}
+          <span style={{ fontSize: "12px", color: "var(--text-dim)", fontFamily: "var(--font-mono)", marginLeft: "8px" }}>
+            Showing {filteredMedia.length} of {mediaList.length}
+          </span>
+        </div>
       </div>
+
+      {/* Media Grid */}
+      {filteredMedia.length === 0 ? (
+        <div className="card" style={{ textAlign: "center", padding: "40px 20px", marginBottom: "20px" }}>
+          <p style={{ color: "var(--text-muted)", fontSize: "14px" }}>
+            {searchQuery || typeFilter !== "All"
+              ? "No media assets match your search or filter criteria."
+              : "No media assets found in library. Click \"+ Add Media Asset\" to upload."}
+          </p>
+          {(searchQuery || typeFilter !== "All") && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setSearchQuery("");
+                setTypeFilter("All");
+              }}
+              style={{ marginTop: "12px" }}
+            >
+              Reset Filters
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="admin-media-grid">
+          {filteredMedia.map((item) => {
+            const isImg = item.type?.startsWith("image/") || item.url?.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i);
+            return (
+              <div key={item.id} className="card" style={{ display: "flex", flexDirection: "column", padding: "16px" }}>
+                <div
+                  onClick={() => setPreviewItem(item)}
+                  title="Click to preview"
+                  style={{
+                    height: "160px",
+                    background: "var(--bg-card-hover)",
+                    borderRadius: "var(--radius-sm)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    marginBottom: "12px",
+                    border: "1px solid var(--border-subtle)",
+                    cursor: "pointer"
+                  }}
+                >
+                  {isImg ? (
+                    <img
+                      src={item.url}
+                      alt={item.name}
+                      style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                        e.currentTarget.parentElement.innerHTML = `<span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); text-align: center; padding: 10px;">${item.name}</span>`;
+                      }}
+                    />
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "16px" }}>
+                      <div style={{ fontSize: "36px", marginBottom: "8px" }}>📄</div>
+                      <span style={{ fontSize: "11px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                        {item.type || "DOCUMENT"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <h3
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      color: "var(--text-bright)",
+                      marginBottom: "4px",
+                      wordBreak: "break-all"
+                    }}
+                  >
+                    {item.name}
+                  </h3>
+                  <div style={{ fontSize: "11px", color: "var(--text-dim)", fontFamily: "var(--font-mono)", marginBottom: "8px" }}>
+                    {item.size} • {item.date || "Active"}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--accent-cyan)",
+                      fontFamily: "var(--font-mono)",
+                      wordBreak: "break-all",
+                      background: "var(--bg-base)",
+                      padding: "6px 8px",
+                      borderRadius: "var(--radius-sm)",
+                      marginBottom: "12px",
+                      border: "1px solid var(--border-subtle)"
+                    }}
+                  >
+                    {item.url}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyUrl(item)}
+                    className="btn btn-outline btn-sm"
+                    style={{ flex: 1 }}
+                  >
+                    {copiedId === item.id ? "✓ Copied" : "Copy URL"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewItem(item)}
+                    className="btn btn-ghost btn-sm"
+                    title="Preview"
+                  >
+                    Preview
+                  </button>
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-ghost btn-sm"
+                  >
+                    Open ↗
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(item)}
+                    className="btn btn-ghost btn-sm"
+                    style={{ color: "#f87171" }}
+                    aria-label={`Delete ${item.name}`}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewItem && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewItem(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.85)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "20px"
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="card"
+            style={{
+              maxWidth: "800px",
+              width: "100%",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              position: "relative",
+              padding: "24px",
+              background: "var(--bg-card)",
+              border: "1px solid var(--border-subtle)"
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+              <div style={{ minWidth: 0, paddingRight: "12px" }}>
+                <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-bright)", wordBreak: "break-all" }}>
+                  {previewItem.name}
+                </h3>
+                <p style={{ fontSize: "12px", color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
+                  {previewItem.type || "Asset"} • {previewItem.size || "Unknown size"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewItem(null)}
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: "16px", lineHeight: 1 }}
+                aria-label="Close preview"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: "240px",
+                background: "var(--bg-base)",
+                borderRadius: "var(--radius-sm)",
+                marginBottom: "16px",
+                padding: "16px",
+                overflow: "hidden"
+              }}
+            >
+              {previewItem.type?.startsWith("image/") || previewItem.url?.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i) ? (
+                <img
+                  src={previewItem.url}
+                  alt={previewItem.name}
+                  style={{ maxWidth: "100%", maxHeight: "60vh", objectFit: "contain" }}
+                />
+              ) : previewItem.type === "application/pdf" || previewItem.url?.endsWith(".pdf") ? (
+                <iframe
+                  src={previewItem.url}
+                  title={previewItem.name}
+                  style={{ width: "100%", height: "50vh", border: "none" }}
+                />
+              ) : (
+                <div style={{ textAlign: "center", padding: "32px" }}>
+                  <div style={{ fontSize: "48px", marginBottom: "12px" }}>📄</div>
+                  <p style={{ fontSize: "14px", color: "var(--text-bright)" }}>Non-image preview</p>
+                  <p style={{ fontSize: "12px", color: "var(--text-dim)", fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
+                    {previewItem.url}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={() => handleCopyUrl(previewItem)}
+                className="btn btn-outline btn-sm"
+              >
+                {copiedId === previewItem.id ? "✓ Copied URL" : "Copy Public URL"}
+              </button>
+              <a
+                href={previewItem.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary btn-sm"
+              >
+                Open in New Tab ↗
+              </a>
+              <Button variant="ghost" size="sm" onClick={() => setPreviewItem(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

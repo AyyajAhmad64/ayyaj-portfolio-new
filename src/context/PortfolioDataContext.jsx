@@ -77,7 +77,8 @@ const buildDefaultStore = () => ({
     primaryAccent: "#38bdf8",
     secondaryAccent: "#f59e0b",
     publicLocation: "Hinjawadi, Pune, Maharashtra, India",
-    showAvailabilityBadge: true
+    showAvailabilityBadge: true,
+    featuredItems: []
   },
   media: []
 });

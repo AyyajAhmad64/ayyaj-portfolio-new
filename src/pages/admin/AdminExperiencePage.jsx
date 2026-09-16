@@ -31,12 +31,12 @@ export default function AdminExperiencePage() {
       role: "",
       company: "",
       employmentType: "Internship",
-      location: "Remote",
-      startDate: "2026",
-      endDate: "Present",
+      location: "",
+      startDate: "",
+      endDate: "",
       current: false,
       description: "",
-      techStr: "Java, Spring Boot, MySQL"
+      techStr: ""
     });
   };
 
@@ -142,7 +142,7 @@ export default function AdminExperiencePage() {
           </div>
 
           <form onSubmit={handleSave} style={{ display: "grid", gap: "16px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">JOB TITLE / ROLE</label>
                 <input
@@ -166,7 +166,7 @@ export default function AdminExperiencePage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">EMPLOYMENT TYPE</label>
                 <input
@@ -197,6 +197,7 @@ export default function AdminExperiencePage() {
                     value={editing.startDate}
                     onChange={(e) => setEditing({ ...editing, startDate: e.target.value })}
                     className="admin-input"
+                    style={{ minWidth: 0 }}
                     placeholder="Sep 2026"
                   />
                   <input
@@ -204,6 +205,7 @@ export default function AdminExperiencePage() {
                     value={editing.endDate}
                     onChange={(e) => setEditing({ ...editing, endDate: e.target.value })}
                     className="admin-input"
+                    style={{ minWidth: 0 }}
                     placeholder="Present"
                   />
                 </div>
@@ -244,7 +246,7 @@ export default function AdminExperiencePage() {
               />
             </div>
 
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div className="admin-form-actions">
               <Button type="submit" variant="primary">
                 Save Experience
               </Button>

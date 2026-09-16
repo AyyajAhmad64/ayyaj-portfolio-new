@@ -31,12 +31,12 @@ export default function AdminEducationPage() {
       degree: "",
       specialization: "",
       institution: "",
-      location: "Pune, Maharashtra, India",
-      year: "Expected 2027",
+      location: "",
+      year: "",
       status: "In Progress",
       current: false,
       description: "",
-      highlightsStr: "Focus on Cloud Computing & Distributed Architectures\nAdvanced Object-Oriented Software Design"
+      highlightsStr: ""
     });
   };
 
@@ -142,7 +142,7 @@ export default function AdminEducationPage() {
           </div>
 
           <form onSubmit={handleSave} style={{ display: "grid", gap: "16px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">DEGREE TITLE</label>
                 <input
@@ -167,7 +167,7 @@ export default function AdminEducationPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+            <div className="admin-form-grid-2">
               <div>
                 <label className="admin-label">INSTITUTION / UNIVERSITY</label>
                 <input
@@ -188,6 +188,7 @@ export default function AdminEducationPage() {
                     value={editing.location}
                     onChange={(e) => setEditing({ ...editing, location: e.target.value })}
                     className="admin-input"
+                    style={{ minWidth: 0 }}
                     placeholder="Pune, Maharashtra, India"
                   />
                   <input
@@ -195,6 +196,7 @@ export default function AdminEducationPage() {
                     value={editing.year}
                     onChange={(e) => setEditing({ ...editing, year: e.target.value })}
                     className="admin-input"
+                    style={{ minWidth: 0 }}
                     placeholder="Expected 2027"
                   />
                 </div>
@@ -234,7 +236,7 @@ export default function AdminEducationPage() {
               />
             </div>
 
-            <div style={{ display: "flex", gap: "10px" }}>
+            <div className="admin-form-actions">
               <Button type="submit" variant="primary">
                 Save Degree
               </Button>

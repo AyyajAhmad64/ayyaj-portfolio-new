@@ -20,7 +20,7 @@ export default function CertificationsPage() {
         subtitle="Verified credentials, structured technical training programs, and software development certificates."
       />
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: "20px" }}>
         {certifications.map((cert) => (
           <CertificationCard key={cert.id} cert={cert} />
         ))}

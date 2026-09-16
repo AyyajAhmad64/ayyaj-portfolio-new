@@ -164,7 +164,7 @@ export default function AdminSettingsPage() {
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px" }}>
+          <div className="admin-form-grid-2">
             <div>
               <label className="admin-label">PRIMARY ACCENT COLOR (CYAN)</label>
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>

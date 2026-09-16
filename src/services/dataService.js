@@ -317,6 +317,21 @@ export async function deleteProject(id) {
   return true;
 }
 
+export async function reorderProjects(orderedIds) {
+  assertCloudConfigured();
+  await supabaseService.reorderProjectsInDb(orderedIds);
+  const store = getStore();
+  if (store.projects) {
+    const map = new Map(store.projects.map((p) => [p.id, p]));
+    store.projects = orderedIds.map((id, idx) => {
+      const item = map.get(id);
+      return item ? { ...item, sortOrder: idx + 1 } : null;
+    }).filter(Boolean);
+    saveStore(store);
+  }
+  return true;
+}
+
 /* ============================================================
    EXPERIENCE API
    ============================================================ */
@@ -484,6 +499,34 @@ export async function deleteCertification(id) {
   return true;
 }
 
+export async function getCertificationsAdmin() {
+  if (isSupabaseConfigured()) {
+    const cloud = await supabaseService.fetchAllCertificationsAdmin();
+    if (cloud && Array.isArray(cloud)) {
+      const store = getStore();
+      store.certifications = cloud;
+      saveStore(store);
+      return cloud;
+    }
+  }
+  return getStore().certifications || [];
+}
+
+export async function reorderCertifications(orderedIds) {
+  assertCloudConfigured();
+  await supabaseService.reorderCertificationsInDb(orderedIds);
+  const store = getStore();
+  if (store.certifications) {
+    const map = new Map(store.certifications.map((c) => [c.id, c]));
+    store.certifications = orderedIds.map((id, idx) => {
+      const item = map.get(id);
+      return item ? { ...item, sortOrder: idx + 1 } : null;
+    }).filter(Boolean);
+    saveStore(store);
+  }
+  return true;
+}
+
 /* ============================================================
    ACHIEVEMENTS API
    ============================================================ */
@@ -528,6 +571,21 @@ export async function deleteAchievement(id) {
   const store = getStore();
   store.achievements = (store.achievements || []).filter((a) => a.id !== id && a.slug !== id);
   saveStore(store);
+  return true;
+}
+
+export async function reorderAchievements(orderedIds) {
+  assertCloudConfigured();
+  await supabaseService.reorderAchievementsInDb(orderedIds);
+  const store = getStore();
+  if (store.achievements) {
+    const map = new Map(store.achievements.map((a) => [a.id, a]));
+    store.achievements = orderedIds.map((id, idx) => {
+      const item = map.get(id);
+      return item ? { ...item, sortOrder: idx + 1 } : null;
+    }).filter(Boolean);
+    saveStore(store);
+  }
   return true;
 }
 
@@ -576,6 +634,49 @@ export async function deleteGalleryItem(id) {
   store.gallery = (store.gallery || []).filter((g) => g.id !== id);
   saveStore(store);
   return true;
+}
+
+export async function getGalleryAdmin() {
+  if (isSupabaseConfigured()) {
+    const cloud = await supabaseService.fetchAllGalleryAdmin();
+    if (cloud && Array.isArray(cloud)) {
+      const store = getStore();
+      store.gallery = cloud;
+      saveStore(store);
+      return cloud;
+    }
+  }
+  return getStore().gallery || [];
+}
+
+export async function reorderGallery(orderedIds) {
+  assertCloudConfigured();
+  await supabaseService.reorderGalleryInDb(orderedIds);
+  const store = getStore();
+  if (store.gallery) {
+    const map = new Map(store.gallery.map((g) => [g.id, g]));
+    store.gallery = orderedIds.map((id, idx) => {
+      const item = map.get(id);
+      return item ? { ...item, sortOrder: idx + 1 } : null;
+    }).filter(Boolean);
+    saveStore(store);
+  }
+  return true;
+}
+
+export async function syncBundledGallery(bundledItems) {
+  if (isSupabaseConfigured()) {
+    const synced = await supabaseService.syncBundledGalleryToDb(bundledItems);
+    if (synced && synced.length > 0) {
+      const store = getStore();
+      const existingUrls = new Set((store.gallery || []).map((g) => g.src || g.imageUrl));
+      const additions = synced.filter((s) => !existingUrls.has(s.src || s.imageUrl));
+      store.gallery = [...(store.gallery || []), ...additions];
+      saveStore(store);
+    }
+    return synced;
+  }
+  return [];
 }
 
 /* ============================================================

@@ -94,7 +94,7 @@ export default function AdminVersionsPage() {
               </p>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px" }}>
+            <div className="admin-versions-grid">
               {/* Version List */}
               <div className="card" style={{ display: "grid", gap: "10px" }}>
                 <h3 style={{ fontSize: "14px", color: "var(--text-bright)", margin: "0 0 8px" }}>

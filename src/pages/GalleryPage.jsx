@@ -9,18 +9,25 @@ export default function GalleryPage() {
   const { gallery } = usePortfolioData();
   const [activeCategory, setActiveCategory] = useState("All");
 
+  const publishedGallery = useMemo(() => {
+    return (gallery || []).filter((item) => {
+      const status = (item.status || item.publicationStatus || "published").toLowerCase();
+      return status === "published";
+    });
+  }, [gallery]);
+
   const categories = useMemo(() => {
     const cats = new Set(["All"]);
-    gallery.forEach((item) => {
+    publishedGallery.forEach((item) => {
       if (item.category) cats.add(item.category);
     });
     return Array.from(cats);
-  }, [gallery]);
+  }, [publishedGallery]);
 
   const filteredItems = useMemo(() => {
-    if (activeCategory === "All") return gallery;
-    return gallery.filter((item) => item.category === activeCategory);
-  }, [gallery, activeCategory]);
+    if (activeCategory === "All") return publishedGallery;
+    return publishedGallery.filter((item) => item.category === activeCategory);
+  }, [publishedGallery, activeCategory]);
 
   return (
     <>

@@ -125,6 +125,26 @@ export async function deleteProjectFromDb(idOrSlug, actorEmail = "admin") {
   }
 }
 
+export async function reorderProjectsInDb(orderedProjectIds, actorEmail = "admin") {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
+  try {
+    const updates = orderedProjectIds.map((id, idx) =>
+      supabase
+        .from("projects")
+        .update({ sort_order: idx + 1, updated_at: new Date().toISOString() })
+        .eq("id", id)
+    );
+    await Promise.all(updates);
+    await recordAuditLog("REORDER", "projects", "batch", { count: orderedProjectIds.length }, actorEmail);
+    return true;
+  } catch (err) {
+    console.error("Supabase: Error reordering projects:", err);
+    throw err;
+  }
+}
+
 /* ============================================================
    EXPERIENCES SERVICE
    ============================================================ */
@@ -349,6 +369,22 @@ export async function fetchPublishedCertifications() {
   }
 }
 
+export async function fetchAllCertificationsAdmin() {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const { data, error } = await supabase
+      .from("certifications")
+      .select("*")
+      .order("sort_order", { ascending: true });
+
+    if (error) throw error;
+    return (data || []).map(mapCertificationFromDb);
+  } catch (err) {
+    console.error("Supabase: Error fetching admin certifications:", err);
+    return null;
+  }
+}
+
 export async function upsertCertification(cert, actorEmail = "admin") {
   if (!isSupabaseConfigured()) {
     throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
@@ -365,6 +401,7 @@ export async function upsertCertification(cert, actorEmail = "admin") {
       verification_url: cert.verificationUrl || cert.verification_url,
       description: cert.description,
       skills: Array.isArray(cert.skills) ? cert.skills : [],
+      sort_order: cert.sortOrder !== undefined ? cert.sortOrder : (cert.sort_order !== undefined ? cert.sort_order : 0),
       publication_status: cert.publicationStatus || cert.publication_status || "published",
       updated_at: new Date().toISOString()
     };
@@ -395,6 +432,26 @@ export async function deleteCertificationFromDb(id, actorEmail = "admin") {
     return true;
   } catch (err) {
     console.error("Supabase: Error deleting certification:", err);
+    throw err;
+  }
+}
+
+export async function reorderCertificationsInDb(orderedCertIds, actorEmail = "admin") {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
+  try {
+    const updates = orderedCertIds.map((id, idx) =>
+      supabase
+        .from("certifications")
+        .update({ sort_order: idx + 1, updated_at: new Date().toISOString() })
+        .eq("id", id)
+    );
+    await Promise.all(updates);
+    await recordAuditLog("REORDER", "certifications", "batch", { count: orderedCertIds.length }, actorEmail);
+    return true;
+  } catch (err) {
+    console.error("Supabase: Error reordering certifications:", err);
     throw err;
   }
 }
@@ -474,6 +531,26 @@ export async function deleteAchievementFromDb(idOrSlug, actorEmail = "admin") {
   }
 }
 
+export async function reorderAchievementsInDb(orderedAchievementIds, actorEmail = "admin") {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
+  try {
+    const updates = orderedAchievementIds.map((id, idx) =>
+      supabase
+        .from("achievements")
+        .update({ sort_order: idx + 1, updated_at: new Date().toISOString() })
+        .eq("id", id)
+    );
+    await Promise.all(updates);
+    await recordAuditLog("REORDER", "achievements", "batch", { count: orderedAchievementIds.length }, actorEmail);
+    return true;
+  } catch (err) {
+    console.error("Supabase: Error reordering achievements:", err);
+    throw err;
+  }
+}
+
 /* ============================================================
    GALLERY SERVICE
    ============================================================ */
@@ -495,6 +572,22 @@ export async function fetchPublishedGallery() {
   }
 }
 
+export async function fetchAllGalleryAdmin() {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const { data, error } = await supabase
+      .from("gallery")
+      .select("*")
+      .order("sort_order", { ascending: true });
+
+    if (error) throw error;
+    return (data || []).map(mapGalleryFromDb);
+  } catch (err) {
+    console.error("Supabase: Error fetching admin gallery:", err);
+    return null;
+  }
+}
+
 export async function upsertGalleryItem(item, actorEmail = "admin") {
   if (!isSupabaseConfigured()) {
     throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
@@ -507,7 +600,8 @@ export async function upsertGalleryItem(item, actorEmail = "admin") {
       title: item.title,
       caption: item.caption,
       category: item.category || "Projects",
-      publication_status: item.publicationStatus || item.publication_status || "published",
+      sort_order: item.sortOrder !== undefined ? item.sortOrder : (item.sort_order !== undefined ? item.sort_order : 0),
+      publication_status: item.status || item.publicationStatus || item.publication_status || "published",
       updated_at: new Date().toISOString()
     };
 
@@ -538,6 +632,68 @@ export async function deleteGalleryItemFromDb(id, actorEmail = "admin") {
   } catch (err) {
     console.error("Supabase: Error deleting gallery item:", err);
     throw err;
+  }
+}
+
+export async function reorderGalleryInDb(orderedGalleryIds, actorEmail = "admin") {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
+  try {
+    const updates = orderedGalleryIds.map((id, idx) =>
+      supabase
+        .from("gallery")
+        .update({ sort_order: idx + 1, updated_at: new Date().toISOString() })
+        .eq("id", id)
+    );
+    await Promise.all(updates);
+    await recordAuditLog("REORDER", "gallery", "batch", { count: orderedGalleryIds.length }, actorEmail);
+    return true;
+  } catch (err) {
+    console.error("Supabase: Error reordering gallery:", err);
+    throw err;
+  }
+}
+
+export async function syncBundledGalleryToDb(staticGalleryItems, actorEmail = "system") {
+  if (!isSupabaseConfigured() || !Array.isArray(staticGalleryItems) || staticGalleryItems.length === 0) return null;
+  try {
+    const { data: existing, error: fetchErr } = await supabase
+      .from("gallery")
+      .select("id, image_url, title");
+    if (fetchErr) throw fetchErr;
+
+    const existingUrls = new Set((existing || []).map((e) => e.image_url));
+    const toInsert = [];
+
+    staticGalleryItems.forEach((item, idx) => {
+      const imgUrl = item.src || item.imageUrl || item.thumbnail;
+      if (imgUrl && !existingUrls.has(imgUrl)) {
+        toInsert.push({
+          image_url: imgUrl,
+          title: item.title,
+          caption: item.caption || "",
+          category: item.category || "Projects",
+          sort_order: (existing?.length || 0) + idx + 1,
+          publication_status: "published",
+          updated_at: new Date().toISOString()
+        });
+      }
+    });
+
+    if (toInsert.length > 0) {
+      const { data: inserted, error: insertErr } = await supabase
+        .from("gallery")
+        .insert(toInsert)
+        .select();
+      if (insertErr) throw insertErr;
+      await recordAuditLog("SYNC_BUNDLED", "gallery", "batch", { count: toInsert.length }, actorEmail);
+      return (inserted || []).map(mapGalleryFromDb);
+    }
+    return [];
+  } catch (err) {
+    console.error("Supabase: Error syncing bundled gallery items:", err);
+    return null;
   }
 }
 
@@ -662,7 +818,8 @@ export async function fetchSiteSettingsFromDb() {
       primaryAccent: data.primary_accent,
       secondaryAccent: data.secondary_accent,
       publicLocation: data.public_location,
-      showAvailabilityBadge: data.show_availability_badge
+      showAvailabilityBadge: data.show_availability_badge,
+      featuredItems: Array.isArray(data.featured_items) ? data.featured_items : []
     };
   } catch (err) {
     console.error("Supabase: Error fetching site settings:", err);
@@ -685,14 +842,33 @@ export async function updateSiteSettingsInDb(updates, actorEmail = "admin") {
       show_availability_badge: updates.showAvailabilityBadge,
       updated_at: new Date().toISOString()
     };
-    const { data, error } = await supabase
+    if (updates.featuredItems !== undefined) {
+      payload.featured_items = updates.featuredItems;
+    }
+    let { data, error } = await supabase
       .from("site_settings")
       .update(payload)
       .eq("id", "00000000-0000-0000-0000-000000000001")
       .select()
       .single();
 
-    if (error) throw error;
+    let featuredItemsPendingMigration = false;
+    if (error && error.message && error.message.includes("featured_items")) {
+      console.warn("Supabase: 'featured_items' column missing in 'site_settings' schema. Retrying update without it. Run migration 20260917000000_featured_and_gallery_sort.sql in Supabase Dashboard SQL editor.");
+      delete payload.featured_items;
+      featuredItemsPendingMigration = true;
+      const retryResult = await supabase
+        .from("site_settings")
+        .update(payload)
+        .eq("id", "00000000-0000-0000-0000-000000000001")
+        .select()
+        .single();
+      if (retryResult.error) throw retryResult.error;
+      data = retryResult.data;
+    } else if (error) {
+      throw error;
+    }
+
     await recordAuditLog("UPDATE", "site_settings", "primary", updates, actorEmail);
     return {
       siteTitle: data.site_title,
@@ -701,7 +877,9 @@ export async function updateSiteSettingsInDb(updates, actorEmail = "admin") {
       primaryAccent: data.primary_accent,
       secondaryAccent: data.secondary_accent,
       publicLocation: data.public_location,
-      showAvailabilityBadge: data.show_availability_badge
+      showAvailabilityBadge: data.show_availability_badge,
+      featuredItems: Array.isArray(data.featured_items) ? data.featured_items : (updates.featuredItems || []),
+      __featuredItemsPendingMigration: featuredItemsPendingMigration
     };
   } catch (err) {
     console.error("Supabase: Error updating site settings:", err);
@@ -1150,7 +1328,8 @@ function mapProjectFromDb(row) {
     github: row.github_url,
     liveDemo: row.live_url,
     thumbnail: row.thumbnail,
-    images
+    images,
+    sortOrder: row.sort_order ?? 0
   };
 }
 
@@ -1176,6 +1355,7 @@ function mapProjectToDb(p) {
     architecture: p.architecture,
     challenges: p.challenges,
     learnings: p.learnings,
+    sort_order: p.sortOrder !== undefined ? p.sortOrder : (p.sort_order !== undefined ? p.sort_order : 0),
     publication_status: p.publicationStatus || p.publication_status || "published",
     updated_at: new Date().toISOString()
   };
@@ -1232,6 +1412,7 @@ function mapCertificationFromDb(row) {
     verificationUrl: row.verification_url,
     description: row.description,
     skills: Array.isArray(row.skills) ? row.skills : [],
+    sortOrder: row.sort_order ?? 0,
     publicationStatus: row.publication_status
   };
 }
@@ -1266,7 +1447,9 @@ function mapGalleryFromDb(row) {
     category: row.category,
     alt: row.title,
     storagePath: row.storage_path,
-    publicationStatus: row.publication_status
+    sortOrder: row.sort_order ?? 0,
+    status: row.publication_status || "published",
+    publicationStatus: row.publication_status || "published"
   };
 }
 

@@ -65,62 +65,118 @@ export default function AdminAuditPage() {
           </p>
         </div>
       ) : (
-        <div className="card" style={{ overflowX: "auto", padding: 0 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-            <thead>
-              <tr style={{ background: "var(--bg-elevated)", borderBottom: "1px solid var(--border-subtle)", textAlign: "left" }}>
-                <th style={{ padding: "12px 16px", color: "var(--text-bright)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>ACTION</th>
-                <th style={{ padding: "12px 16px", color: "var(--text-bright)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>ENTITY</th>
-                <th style={{ padding: "12px 16px", color: "var(--text-bright)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>DETAILS</th>
-                <th style={{ padding: "12px 16px", color: "var(--text-bright)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>ACTOR</th>
-                <th style={{ padding: "12px 16px", color: "var(--text-bright)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>TIMESTAMP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => (
-                <tr key={log.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                  <td style={{ padding: "12px 16px" }}>
-                    <span
-                      style={{
-                        fontSize: "10.5px",
-                        fontWeight: "700",
-                        padding: "2px 6px",
-                        borderRadius: "3px",
-                        background:
-                          log.action === "DELETE"
-                            ? "rgba(239, 68, 68, 0.15)"
-                            : log.action === "UPSERT"
-                            ? "rgba(16, 185, 129, 0.15)"
-                            : "rgba(56, 189, 248, 0.15)",
-                        color:
-                          log.action === "DELETE"
-                            ? "#f87171"
-                            : log.action === "UPSERT"
-                            ? "var(--accent-emerald)"
-                            : "var(--accent-cyan)",
-                        fontFamily: "var(--font-mono)"
-                      }}
-                    >
-                      {log.action}
-                    </span>
-                  </td>
-                  <td style={{ padding: "12px 16px", fontFamily: "var(--font-mono)", color: "var(--accent-amber)" }}>
-                    {log.entity_type} {log.entity_id ? `(${log.entity_id.slice(0, 8)}...)` : ""}
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "var(--text-muted)", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {JSON.stringify(log.details || {})}
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
-                    {log.actor_email || "admin"}
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: "12px", whiteSpace: "nowrap" }}>
-                    {new Date(log.created_at).toLocaleString()}
-                  </td>
+        <>
+          {/* Desktop Table View */}
+          <div className="card admin-audit-desktop-view" style={{ overflowX: "auto", padding: 0 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+              <thead>
+                <tr style={{ background: "var(--bg-elevated)", borderBottom: "1px solid var(--border-subtle)", textAlign: "left" }}>
+                  <th style={{ padding: "12px 16px", color: "var(--text-bright)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>ACTION</th>
+                  <th style={{ padding: "12px 16px", color: "var(--text-bright)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>ENTITY</th>
+                  <th style={{ padding: "12px 16px", color: "var(--text-bright)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>DETAILS</th>
+                  <th style={{ padding: "12px 16px", color: "var(--text-bright)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>ACTOR</th>
+                  <th style={{ padding: "12px 16px", color: "var(--text-bright)", fontFamily: "var(--font-mono)", fontSize: "11px" }}>TIMESTAMP</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <tr key={log.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                    <td style={{ padding: "12px 16px" }}>
+                      <span
+                        style={{
+                          fontSize: "10.5px",
+                          fontWeight: "700",
+                          padding: "2px 6px",
+                          borderRadius: "3px",
+                          background:
+                            log.action === "DELETE"
+                              ? "rgba(239, 68, 68, 0.15)"
+                              : log.action === "UPSERT"
+                              ? "rgba(16, 185, 129, 0.15)"
+                              : "rgba(56, 189, 248, 0.15)",
+                          color:
+                            log.action === "DELETE"
+                              ? "#f87171"
+                              : log.action === "UPSERT"
+                              ? "var(--accent-emerald)"
+                              : "var(--accent-cyan)",
+                          fontFamily: "var(--font-mono)"
+                        }}
+                      >
+                        {log.action}
+                      </span>
+                    </td>
+                    <td style={{ padding: "12px 16px", fontFamily: "var(--font-mono)", color: "var(--accent-amber)" }}>
+                      {log.entity_type} {log.entity_id ? `(${log.entity_id.slice(0, 8)}...)` : ""}
+                    </td>
+                    <td style={{ padding: "12px 16px", color: "var(--text-muted)", maxWidth: "300px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {JSON.stringify(log.details || {})}
+                    </td>
+                    <td style={{ padding: "12px 16px", color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: "12px" }}>
+                      {log.actor_email || "admin"}
+                    </td>
+                    <td style={{ padding: "12px 16px", color: "var(--text-dim)", fontFamily: "var(--font-mono)", fontSize: "12px", whiteSpace: "nowrap" }}>
+                      {new Date(log.created_at).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Responsive Cards View */}
+          <div className="admin-audit-mobile-view">
+            {logs.map((log) => (
+              <div key={log.id} className="admin-audit-card">
+                <div className="admin-audit-card-header">
+                  <span
+                    style={{
+                      fontSize: "10.5px",
+                      fontWeight: "700",
+                      padding: "2px 6px",
+                      borderRadius: "3px",
+                      background:
+                        log.action === "DELETE"
+                          ? "rgba(239, 68, 68, 0.15)"
+                          : log.action === "UPSERT"
+                          ? "rgba(16, 185, 129, 0.15)"
+                          : "rgba(56, 189, 248, 0.15)",
+                      color:
+                        log.action === "DELETE"
+                          ? "#f87171"
+                          : log.action === "UPSERT"
+                          ? "var(--accent-emerald)"
+                          : "var(--accent-cyan)",
+                      fontFamily: "var(--font-mono)"
+                    }}
+                  >
+                    {log.action}
+                  </span>
+                  <span style={{ fontSize: "11px", color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
+                    {new Date(log.created_at).toLocaleString()}
+                  </span>
+                </div>
+
+                <div className="admin-audit-card-entity">
+                  <strong>ENTITY:</strong> {log.entity_type} {log.entity_id ? `(${log.entity_id.slice(0, 8)}...)` : ""}
+                </div>
+
+                {log.details && Object.keys(log.details).length > 0 && (
+                  <div className="admin-audit-card-details">
+                    <pre style={{ margin: 0, whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                      {JSON.stringify(log.details, null, 2)}
+                    </pre>
+                  </div>
+                )}
+
+                <div className="admin-audit-card-footer">
+                  <span>ACTOR: {log.actor_email || "admin"}</span>
+                  <span style={{ color: "var(--accent-cyan)" }}>AUDIT LOG RECORDED</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

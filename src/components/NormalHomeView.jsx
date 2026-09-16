@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { usePortfolioData } from "../context/PortfolioDataContext";
 import { resolveHomeContent } from "../utils/contentDefaults";
 import ProjectThumbnail from "./ProjectThumbnail";
+import FeaturedSection from "./FeaturedSection";
 import Button from "./Button";
 import SEO from "./SEO";
 
@@ -195,75 +196,12 @@ export default function NormalHomeView() {
       </section>
 
       {/* ============================================================
-          SECTION 3: FEATURED WORK (BEST 2–3 PROJECTS) (#projects)
+          SECTION 3: FEATURED SHOWCASE (#projects)
           ============================================================ */}
-      <section className="home-section" id="projects" aria-label="Featured Projects">
-        <div className="home-section-header">
-          <div>
-            <span className="section-micro-label">CURATED PORTFOLIO</span>
-            <h2 className="home-section-title">{homeContent.featuredHeading}</h2>
-            <p className="home-section-desc">
-              {homeContent.featuredDesc}
-            </p>
-          </div>
-          <Button to="/projects" variant="outline" size="sm">
-            View All Projects ({featuredProjects.length}+) →
-          </Button>
-        </div>
-
-        <div className="featured-cards-grid">
-          {featuredProjects.map((proj, idx) => (
-            <article key={proj.id} className="featured-project-card">
-              <div className="featured-card-top">
-                <span className="featured-index">#0{idx + 1}</span>
-                <span
-                  className={`project-status ${(proj.status || "").toLowerCase().includes("dev") ? "in-development" : "completed"}`}
-                >
-                  {proj.status}
-                </span>
-              </div>
-
-              <Link to={`/projects/${proj.slug}`} tabIndex={-1} aria-hidden="true" style={{ display: "block" }}>
-                <ProjectThumbnail project={proj} />
-              </Link>
-
-              <div className="featured-card-meta">{proj.type}</div>
-              <h3 className="featured-card-title">
-                <Link to={`/projects/${proj.slug}`}>{proj.title}</Link>
-              </h3>
-
-              <div className="featured-card-stack">{proj.stack}</div>
-
-              <p className="featured-card-desc">{proj.description}</p>
-
-              <div className="featured-tag-cloud">
-                {(proj.technologies || []).slice(0, 4).map((t) => (
-                  <span key={t} className="featured-mini-tag">
-                    {t}
-                  </span>
-                ))}
-              </div>
-
-              <div className="featured-card-actions">
-                <Button to={`/projects/${proj.slug}`} variant="outline" size="sm">
-                  Explore Case Study →
-                </Button>
-                {proj.github && (
-                  <Button
-                    href={proj.github}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="ghost"
-                    size="sm"
-                  >
-                    GitHub ↗
-                  </Button>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+      <FeaturedSection
+        heading={homeContent.featuredHeading}
+        description={homeContent.featuredDesc}
+      />
 
       {/* ============================================================
           SECTION 4: CAREER SNAPSHOT (#experience)
