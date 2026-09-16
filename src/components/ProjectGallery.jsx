@@ -179,6 +179,8 @@ export default function ProjectGallery({ project }) {
               <img
                 src={img}
                 alt={`Thumbnail ${idx + 1}`}
+                loading="lazy"
+                decoding="async"
                 className="gallery-thumb-img"
                 onError={() => handleImageError(img)}
               />
@@ -226,6 +228,7 @@ export default function ProjectGallery({ project }) {
               <img
                 src={currentImage}
                 alt={`${project?.title} fullscreen screenshot`}
+                decoding="async"
                 className="lightbox-active-img"
               />
 
@@ -249,8 +252,9 @@ export default function ProjectGallery({ project }) {
                     type="button"
                     className={`lightbox-thumb-btn ${idx === safeIndex ? "active" : ""}`}
                     onClick={() => setActiveIndex(idx)}
+                    aria-label={`View screenshot ${idx + 1}`}
                   >
-                    <img src={img} alt={`Thumb ${idx + 1}`} />
+                    <img src={img} alt={`Thumb ${idx + 1}`} loading="lazy" decoding="async" />
                   </button>
                 ))}
               </div>

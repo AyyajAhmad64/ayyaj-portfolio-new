@@ -6,6 +6,8 @@ import SEO from "../../components/SEO";
 export default function AdminSkillsPage() {
   const [skillGroups, setSkillGroups] = useState([]);
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [newSkillName, setNewSkillName] = useState("");
   const [targetCategoryIndex, setTargetCategoryIndex] = useState(0);
 
@@ -24,34 +26,63 @@ export default function AdminSkillsPage() {
 
     const updated = [...skillGroups];
     if (updated[targetCategoryIndex]) {
-      updated[targetCategoryIndex].skills.push({
-        name: newSkillName.trim(),
-        level: "Proficient",
-        core: false
-      });
-      await saveSkills(updated);
-      setSkillGroups(updated);
-      setNewSkillName("");
-      setNotice("Skill successfully added.");
-      setTimeout(() => setNotice(""), 3000);
+      try {
+        setIsSaving(true);
+        setErrorNotice("");
+        const skillList = [...updated[targetCategoryIndex].skills, {
+          name: newSkillName.trim(),
+          level: "Proficient",
+          core: false
+        }];
+        updated[targetCategoryIndex] = { ...updated[targetCategoryIndex], skills: skillList };
+
+        await saveSkills(updated);
+        setSkillGroups(updated);
+        setNewSkillName("");
+        setNotice("Skill successfully saved to Supabase.");
+        setTimeout(() => setNotice(""), 3000);
+      } catch (err) {
+        console.error("Failed to add skill:", err);
+        setErrorNotice(err.message || "Cloud save failed. Your changes were not saved.");
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
   const handleRemoveSkill = async (groupIndex, skillIndex) => {
-    const updated = [...skillGroups];
-    updated[groupIndex].skills.splice(skillIndex, 1);
-    await saveSkills(updated);
-    setSkillGroups(updated);
-    setNotice("Skill removed.");
-    setTimeout(() => setNotice(""), 3000);
+    try {
+      setErrorNotice("");
+      const updated = [...skillGroups];
+      const newSkills = [...updated[groupIndex].skills];
+      newSkills.splice(skillIndex, 1);
+      updated[groupIndex] = { ...updated[groupIndex], skills: newSkills };
+
+      await saveSkills(updated);
+      setSkillGroups(updated);
+      setNotice("Skill removed in Supabase.");
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      console.error("Failed to remove skill:", err);
+      setErrorNotice(err.message || "Cloud save failed. Skill was not removed.");
+    }
   };
 
   const handleToggleCore = async (groupIndex, skillIndex) => {
-    const updated = [...skillGroups];
-    const item = updated[groupIndex].skills[skillIndex];
-    item.core = !item.core;
-    await saveSkills(updated);
-    setSkillGroups(updated);
+    try {
+      setErrorNotice("");
+      const updated = [...skillGroups];
+      const newSkills = [...updated[groupIndex].skills];
+      const item = { ...newSkills[skillIndex], core: !newSkills[skillIndex].core };
+      newSkills[skillIndex] = item;
+      updated[groupIndex] = { ...updated[groupIndex], skills: newSkills };
+
+      await saveSkills(updated);
+      setSkillGroups(updated);
+    } catch (err) {
+      console.error("Failed to toggle skill core status:", err);
+      setErrorNotice(err.message || "Cloud save failed. Skill priority was not updated.");
+    }
   };
 
   return (
@@ -67,6 +98,32 @@ export default function AdminSkillsPage() {
           </p>
         </div>
       </div>
+
+      {errorNotice && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: "var(--radius-sm)",
+            color: "#fca5a5",
+            fontSize: "13px",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}
+        >
+          <span>⚠️ <strong>Cloud operation failed:</strong> {errorNotice}</span>
+          <button
+            type="button"
+            onClick={() => setErrorNotice("")}
+            style={{ background: "transparent", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: "14px" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div style={{ padding: "10px 14px", background: "rgba(16, 185, 129, 0.12)", border: "1px solid var(--accent-emerald)", borderRadius: "var(--radius-sm)", color: "var(--accent-emerald)", fontSize: "13px", marginBottom: "20px" }}>

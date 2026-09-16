@@ -9,6 +9,7 @@ export default function AdminMessagesPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
 
   const loadMessages = async () => {
     setLoading(true);
@@ -22,18 +23,32 @@ export default function AdminMessagesPage() {
   }, []);
 
   const handleStatusChange = async (id, newStatus) => {
-    await updateMessageStatus(id, newStatus);
-    await loadMessages();
-    setNotice(`Message status marked as "${newStatus}".`);
-    setTimeout(() => setNotice(""), 3000);
+    setErrorNotice("");
+    setNotice("");
+    try {
+      await updateMessageStatus(id, newStatus);
+      await loadMessages();
+      setNotice(`Message status marked as "${newStatus}".`);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      console.error("Failed to update message status:", err);
+      setErrorNotice(err.message || "Cloud update failed. Message status not changed.");
+    }
   };
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this message?")) {
-      await deleteMessage(id);
-      await loadMessages();
-      setNotice("Message deleted.");
-      setTimeout(() => setNotice(""), 3000);
+      setErrorNotice("");
+      setNotice("");
+      try {
+        await deleteMessage(id);
+        await loadMessages();
+        setNotice("Message deleted.");
+        setTimeout(() => setNotice(""), 3000);
+      } catch (err) {
+        console.error("Failed to delete message:", err);
+        setErrorNotice(err.message || "Cloud delete failed. Message was not deleted.");
+      }
     }
   };
 
@@ -92,6 +107,22 @@ export default function AdminMessagesPage() {
           }}
         >
           {notice}
+        </div>
+      )}
+
+      {errorNotice && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid var(--accent-rose)",
+            borderRadius: "var(--radius-sm)",
+            color: "var(--accent-rose)",
+            fontSize: "13px",
+            marginBottom: "20px"
+          }}
+        >
+          {errorNotice}
         </div>
       )}
 

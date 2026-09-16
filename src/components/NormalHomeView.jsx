@@ -13,6 +13,7 @@ export default function NormalHomeView() {
     featuredProjects = [],
     experience: experienceData = [],
     education: educationData = [],
+    skills: skillsData = [],
     achievements: achievementsData = [],
     certifications: certificationsData = [],
     gallery: galleryData = []
@@ -26,42 +27,31 @@ export default function NormalHomeView() {
   const mcaEducation = educationData.find((e) => e.current) || educationData[0] || {};
   const bcaEducation = educationData.find((e) => !e.current && e.id === "bca-degree") || educationData[1] || {};
 
-  const highlightedSkills = {
-    backend: ["Java", "Spring Boot", "REST APIs", "Hibernate / JPA", "ASP.NET Core"],
-    frontend: ["React.js", "JavaScript (ES6+)", "HTML5 / CSS3", "Bootstrap"],
-    database: ["MySQL", "SQL Server", "MongoDB", "Database Design"],
-    cloud: ["Cloud Computing", "AWS Fundamentals", "Layered Architecture"],
-    tools: ["Git", "GitHub", "Postman", "Maven", "VS Code"]
+  const fullName = (profileData.name || "Ayyaj Kalandar Shaikh").trim();
+  const nameParts = fullName.split(" ");
+  const firstName = nameParts[0]?.toUpperCase() || "AYYAJ";
+  const lastName = nameParts.slice(1).join(" ")?.toUpperCase() || "KALANDAR SHAIKH";
+
+  const getCategorySkills = (catMatch, fallback) => {
+    const group = skillsData.find((g) => g.category?.toUpperCase().includes(catMatch.toUpperCase()));
+    if (!group || !Array.isArray(group.skills) || group.skills.length === 0) return fallback;
+    const names = group.skills.map((s) => (typeof s === "string" ? s : s.name));
+    return names.length > 0 ? names.slice(0, 6) : fallback;
   };
 
-  const engineeringPrinciples = [
-    {
-      title: "Layered Clean Architecture",
-      subtitle: "Controller-Service-Repository Pattern",
-      desc: "Strict separation of concerns across presentation, business domain logic, and persistent relational data layers for maintainable codebases."
-    },
-    {
-      title: "Relational Persistence & Integrity",
-      subtitle: "Normalized Data Modeling",
-      desc: "Explicit schema design, transactional boundaries, entity relationships, and query tuning in MySQL and Microsoft SQL Server."
-    },
-    {
-      title: "Practical Full-Stack Execution",
-      subtitle: "React Frontend + REST Contracts",
-      desc: "Component-driven user interfaces connected with strongly-typed RESTful endpoints, responsive viewport handling, and accessibility standards."
-    },
-    {
-      title: "Continuous Learning & Modernization",
-      subtitle: "Cloud & AI Integrations",
-      desc: "Postgraduate specialization in Cloud Computing combined with active industry experience integrating AI capabilities into MERN applications."
-    }
-  ];
+  const highlightedSkills = {
+    backend: getCategorySkills("BACKEND", ["Java", "Spring Boot", "REST APIs", "Hibernate / JPA", "ASP.NET Core"]),
+    frontend: getCategorySkills("FRONTEND", ["React.js", "JavaScript (ES6+)", "HTML5 / CSS3", "Bootstrap"]),
+    database: getCategorySkills("DATABASE", ["MySQL", "SQL Server", "MongoDB", "Database Design"]),
+    cloud: getCategorySkills("CLOUD", ["Cloud Computing", "AWS Fundamentals", "Layered Architecture"]),
+    tools: getCategorySkills("TOOL", ["Git", "GitHub", "Postman", "Maven", "VS Code"])
+  };
 
   return (
     <div className="home-container" aria-label="Personal Developer Platform — Home">
       <SEO
         title="Home"
-        description="Ayyaj Kalandar Shaikh — Software Developer & Full Stack Engineer specializing in Java, Spring Boot, React.js, and Cloud Computing (MCA)."
+        description={`${fullName} — Software Developer & Full Stack Engineer specializing in Java, Spring Boot, React.js, and Cloud Computing (MCA).`}
       />
 
       {/* ============================================================
@@ -77,8 +67,8 @@ export default function NormalHomeView() {
             </div>
 
             <h1 className="hero-title">
-              <span className="hero-name-first">AYYAJ</span>
-              <span className="hero-name-last">KALANDAR SHAIKH</span>
+              <span className="hero-name-first">{firstName}</span>
+              <span className="hero-name-last">{lastName}</span>
             </h1>
 
             <div className="hero-role-bar">
@@ -155,6 +145,10 @@ export default function NormalHomeView() {
               <img
                 src="/profile.jpg"
                 alt={profileData.name}
+                width="280"
+                height="320"
+                decoding="async"
+                fetchPriority="high"
                 className="hero-image"
                 onError={(e) => {
                   e.currentTarget.src =

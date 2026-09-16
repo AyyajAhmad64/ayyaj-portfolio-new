@@ -11,6 +11,8 @@ export default function AdminProjectsPage() {
   const [editingProject, setEditingProject] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
@@ -73,34 +75,50 @@ export default function AdminProjectsPage() {
     e.preventDefault();
     if (!editingProject) return;
 
-    const payload = {
-      ...editingProject,
-      images: Array.isArray(editingProject.images) ? editingProject.images.filter(Boolean) : [],
-      category: editingProject.categoryStr.split(",").map((s) => s.trim()).filter(Boolean),
-      technologies: editingProject.techStr.split(",").map((s) => s.trim()).filter(Boolean),
-      features: editingProject.featuresStr.split("\n").map((s) => s.trim()).filter(Boolean),
-      slug: editingProject.slug || editingProject.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      publicationStatus: editingProject.publicationStatus || "published"
-    };
+    try {
+      setIsSaving(true);
+      setErrorNotice("");
 
-    delete payload.categoryStr;
-    delete payload.techStr;
-    delete payload.featuresStr;
+      const payload = {
+        ...editingProject,
+        images: Array.isArray(editingProject.images) ? editingProject.images.filter(Boolean) : [],
+        category: editingProject.categoryStr.split(",").map((s) => s.trim()).filter(Boolean),
+        technologies: editingProject.techStr.split(",").map((s) => s.trim()).filter(Boolean),
+        features: editingProject.featuresStr.split("\n").map((s) => s.trim()).filter(Boolean),
+        slug: editingProject.slug || editingProject.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        publicationStatus: editingProject.publicationStatus || "published"
+      };
 
-    await saveProject(payload);
-    await loadProjects();
-    setEditingProject(null);
-    setIsCreating(false);
-    setNotice("Project successfully saved.");
-    setTimeout(() => setNotice(""), 3000);
+      delete payload.categoryStr;
+      delete payload.techStr;
+      delete payload.featuresStr;
+
+      await saveProject(payload);
+      await loadProjects();
+      setEditingProject(null);
+      setIsCreating(false);
+      setNotice("Project successfully saved to Supabase.");
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      console.error("Failed to save project:", err);
+      setErrorNotice(err.message || "Cloud save failed. Your changes were not saved.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (id, title) => {
     if (window.confirm(`Delete project "${title}"? This cannot be undone.`)) {
-      await deleteProject(id);
-      await loadProjects();
-      setNotice(`Project "${title}" deleted.`);
-      setTimeout(() => setNotice(""), 3000);
+      try {
+        setErrorNotice("");
+        await deleteProject(id);
+        await loadProjects();
+        setNotice(`Project "${title}" deleted from Supabase.`);
+        setTimeout(() => setNotice(""), 3000);
+      } catch (err) {
+        console.error("Failed to delete project:", err);
+        setErrorNotice(err.message || "Cloud deletion failed. Project was not deleted.");
+      }
     }
   };
 
@@ -121,6 +139,32 @@ export default function AdminProjectsPage() {
           + Add New Project
         </Button>
       </div>
+
+      {errorNotice && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: "var(--radius-sm)",
+            color: "#fca5a5",
+            fontSize: "13px",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}
+        >
+          <span>⚠️ <strong>Cloud operation failed:</strong> {errorNotice}</span>
+          <button
+            type="button"
+            onClick={() => setErrorNotice("")}
+            style={{ background: "transparent", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: "14px" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div

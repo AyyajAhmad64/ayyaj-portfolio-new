@@ -344,10 +344,13 @@ function resolveLocalKnowledge(q, store) {
   // 10. RESUME / CV
   if (q.includes("resume") || q.includes("cv") || q.includes("download resume")) {
     const resumeFile = contact.resumePdf || "Ayyaj Kalandar Shaikh - Resume.pdf";
+    const resumeUrl = resumeFile.startsWith("http")
+      ? resumeFile
+      : (resumeFile.startsWith("/") ? resumeFile : `/${encodeURIComponent(resumeFile)}`);
     return (
-      `**Official Resume for Ayyaj Kalandar Shaikh:**\n\n` +
+      `**Official Resume for ${profile.name || "Ayyaj Kalandar Shaikh"}:**\n\n` +
       `• **Interactive Document Viewer:** Visit the dedicated [/resume](/resume) page to review the formatted document.\n` +
-      `• **Direct PDF Download:** [Download ${resumeFile}](/${encodeURIComponent(resumeFile)})\n` +
+      `• **Direct PDF Download:** [Download PDF](${resumeUrl})\n` +
       (contact.resumeDrive ? `• **Google Drive Copy:** [Open in Google Drive](${contact.resumeDrive})\n` : "")
     );
   }

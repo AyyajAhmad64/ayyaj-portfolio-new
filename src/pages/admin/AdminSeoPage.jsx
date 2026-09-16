@@ -13,6 +13,7 @@ export default function AdminSeoPage() {
   const [keywords, setKeywords] = useState("");
   const [ogImage, setOgImage] = useState("/profile.jpg");
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -22,7 +23,8 @@ export default function AdminSeoPage() {
       setProfile(p || {});
       setSiteTitle(s?.siteTitle || "Ayyaj Kalandar Shaikh | Software Developer & Cloud Computing");
       setMetaDesc(p?.bio || "Software Developer specializing in Java, Spring Boot, React.js, and Cloud Computing (MCA).");
-      setKeywords("Software Developer, Full Stack Engineer, Java, Spring Boot, React.js, Cloud Computing, MCA, Pune");
+      setKeywords(s?.keywords || "Software Developer, Full Stack Engineer, Java, Spring Boot, React.js, Cloud Computing, MCA, Pune");
+      setOgImage(s?.ogImage || "/profile.jpg");
     }
     load();
   }, []);
@@ -30,10 +32,12 @@ export default function AdminSeoPage() {
   const handleSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
+    setErrorNotice("");
+    setNotice("");
 
     try {
       await Promise.all([
-        updateSettings({ siteTitle }),
+        updateSettings({ siteTitle, keywords, ogImage }),
         updateProfile({ bio: metaDesc })
       ]);
       if (refresh) await refresh();
@@ -41,7 +45,7 @@ export default function AdminSeoPage() {
       setTimeout(() => setNotice(""), 3000);
     } catch (err) {
       console.error("Failed to save SEO settings:", err);
-      alert("Error: " + err.message);
+      setErrorNotice(err.message || "Cloud save failed. Your changes were not saved.");
     } finally {
       setIsSaving(false);
     }
@@ -70,6 +74,12 @@ export default function AdminSeoPage() {
       {notice && (
         <div style={{ padding: "12px 16px", background: "rgba(16, 185, 129, 0.12)", border: "1px solid var(--accent-emerald)", borderRadius: "var(--radius-sm)", color: "var(--accent-emerald)", fontSize: "13px", marginBottom: "20px" }}>
           {notice}
+        </div>
+      )}
+
+      {errorNotice && (
+        <div style={{ padding: "12px 16px", background: "rgba(239, 68, 68, 0.12)", border: "1px solid var(--accent-rose)", borderRadius: "var(--radius-sm)", color: "var(--accent-rose)", fontSize: "13px", marginBottom: "20px" }}>
+          {errorNotice}
         </div>
       )}
 

@@ -7,6 +7,8 @@ export default function AdminExperiencePage() {
   const [list, setList] = useState([]);
   const [editing, setEditing] = useState(null);
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const loadData = async () => {
     const data = await getExperience();
@@ -42,25 +44,41 @@ export default function AdminExperiencePage() {
     e.preventDefault();
     if (!editing) return;
 
-    const payload = {
-      ...editing,
-      technologies: editing.techStr.split(",").map((s) => s.trim()).filter(Boolean)
-    };
-    delete payload.techStr;
+    try {
+      setIsSaving(true);
+      setErrorNotice("");
 
-    await saveExperience(payload);
-    await loadData();
-    setEditing(null);
-    setNotice("Experience item saved.");
-    setTimeout(() => setNotice(""), 3000);
+      const payload = {
+        ...editing,
+        technologies: editing.techStr.split(",").map((s) => s.trim()).filter(Boolean)
+      };
+      delete payload.techStr;
+
+      await saveExperience(payload);
+      await loadData();
+      setEditing(null);
+      setNotice("Experience item saved to Supabase.");
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      console.error("Failed to save experience:", err);
+      setErrorNotice(err.message || "Cloud save failed. Your changes were not saved.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (id, role) => {
     if (window.confirm(`Delete experience item "${role}"?`)) {
-      await deleteExperience(id);
-      await loadData();
-      setNotice("Item deleted.");
-      setTimeout(() => setNotice(""), 3000);
+      try {
+        setErrorNotice("");
+        await deleteExperience(id);
+        await loadData();
+        setNotice("Experience item deleted from Supabase.");
+        setTimeout(() => setNotice(""), 3000);
+      } catch (err) {
+        console.error("Failed to delete experience:", err);
+        setErrorNotice(err.message || "Cloud deletion failed. Item was not deleted.");
+      }
     }
   };
 
@@ -81,6 +99,32 @@ export default function AdminExperiencePage() {
           + Add Role / Internship
         </Button>
       </div>
+
+      {errorNotice && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: "var(--radius-sm)",
+            color: "#fca5a5",
+            fontSize: "13px",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}
+        >
+          <span>⚠️ <strong>Cloud operation failed:</strong> {errorNotice}</span>
+          <button
+            type="button"
+            onClick={() => setErrorNotice("")}
+            style={{ background: "transparent", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: "14px" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div style={{ padding: "10px 14px", background: "rgba(16, 185, 129, 0.12)", border: "1px solid var(--accent-emerald)", borderRadius: "var(--radius-sm)", color: "var(--accent-emerald)", fontSize: "13px", marginBottom: "20px" }}>

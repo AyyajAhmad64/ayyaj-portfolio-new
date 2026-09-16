@@ -66,7 +66,9 @@ export async function fetchAllProjectsAdmin() {
 }
 
 export async function upsertProject(project, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const dbPayload = mapProjectToDb(project);
     const { data, error } = await supabase
@@ -103,7 +105,9 @@ export async function upsertProject(project, actorEmail = "admin") {
 }
 
 export async function deleteProjectFromDb(idOrSlug, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     // Can be UUID or slug
     const isUuid = /^[0-9a-fA-F-]{36}$/.test(idOrSlug);
@@ -143,7 +147,9 @@ export async function fetchPublishedExperiences() {
 }
 
 export async function upsertExperience(exp, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const payload = {
       id: /^[0-9a-fA-F-]{36}$/.test(exp.id) ? exp.id : undefined,
@@ -177,7 +183,9 @@ export async function upsertExperience(exp, actorEmail = "admin") {
 }
 
 export async function deleteExperienceFromDb(id, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const { error } = await supabase.from("experiences").delete().eq("id", id);
     if (error) throw error;
@@ -211,7 +219,9 @@ export async function fetchPublishedEducation() {
 }
 
 export async function upsertEducation(edu, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const payload = {
       id: /^[0-9a-fA-F-]{36}$/.test(edu.id) ? edu.id : undefined,
@@ -246,7 +256,9 @@ export async function upsertEducation(edu, actorEmail = "admin") {
 }
 
 export async function deleteEducationFromDb(id, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const { error } = await supabase.from("education").delete().eq("id", id);
     if (error) throw error;
@@ -280,7 +292,9 @@ export async function fetchPublishedSkills() {
 }
 
 export async function upsertSkillsBatch(groupedSkills, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     // Flatten grouped skills into individual skill rows
     const rows = [];
@@ -336,7 +350,9 @@ export async function fetchPublishedCertifications() {
 }
 
 export async function upsertCertification(cert, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const payload = {
       id: /^[0-9a-fA-F-]{36}$/.test(cert.id) ? cert.id : undefined,
@@ -369,7 +385,9 @@ export async function upsertCertification(cert, actorEmail = "admin") {
 }
 
 export async function deleteCertificationFromDb(id, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const { error } = await supabase.from("certifications").delete().eq("id", id);
     if (error) throw error;
@@ -403,7 +421,9 @@ export async function fetchPublishedAchievements() {
 }
 
 export async function upsertAchievement(ach, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const payload = {
       id: /^[0-9a-fA-F-]{36}$/.test(ach.id) ? ach.id : undefined,
@@ -438,7 +458,9 @@ export async function upsertAchievement(ach, actorEmail = "admin") {
 }
 
 export async function deleteAchievementFromDb(idOrSlug, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const isUuid = /^[0-9a-fA-F-]{36}$/.test(idOrSlug);
     const query = supabase.from("achievements").delete();
@@ -474,7 +496,9 @@ export async function fetchPublishedGallery() {
 }
 
 export async function upsertGalleryItem(item, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const payload = {
       id: /^[0-9a-fA-F-]{36}$/.test(item.id) ? item.id : undefined,
@@ -503,7 +527,9 @@ export async function upsertGalleryItem(item, actorEmail = "admin") {
 }
 
 export async function deleteGalleryItemFromDb(id, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const { error } = await supabase.from("gallery").delete().eq("id", id);
     if (error) throw error;
@@ -538,7 +564,9 @@ export async function fetchProfileFromDb() {
 }
 
 export async function updateProfileInDb(updates, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const payload = mapProfileToDb(updates);
     const { data, error } = await supabase
@@ -582,7 +610,9 @@ export async function fetchRecruiterFromDb() {
 }
 
 export async function updateRecruiterInDb(updates, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const payload = {
       summary: updates.summary,
@@ -641,7 +671,9 @@ export async function fetchSiteSettingsFromDb() {
 }
 
 export async function updateSiteSettingsInDb(updates, actorEmail = "admin") {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
+  }
   try {
     const payload = {
       site_title: updates.siteTitle,
@@ -761,18 +793,58 @@ export async function fetchMediaCatalog() {
 }
 
 export async function deleteMediaFromStorage(storagePath, id = null, bucket = "portfolio-media") {
-  if (!isSupabaseConfigured()) return false;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Media deletion requires an active Supabase Cloud connection.");
+  }
   try {
     if (storagePath) {
-      await supabase.storage.from(bucket).remove([storagePath]);
+      const { error: storageErr } = await supabase.storage.from(bucket).remove([storagePath]);
+      if (storageErr) {
+        console.error("Supabase Storage error deleting file:", storageErr);
+      }
     }
     if (id) {
-      await supabase.from("media").delete().eq("id", id);
+      const { error: dbErr } = await supabase.from("media").delete().eq("id", id);
+      if (dbErr) throw dbErr;
     }
     return true;
   } catch (err) {
     console.error("Supabase: Error deleting media:", err);
-    return false;
+    throw err;
+  }
+}
+
+export async function upsertMediaItem(item) {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud media save requires an active Supabase Cloud connection.");
+  }
+  try {
+    const payload = {
+      file_name: item.name,
+      storage_path: item.storagePath || "",
+      public_url: item.url,
+      mime_type: item.type || "image/jpeg",
+      size_bytes: typeof item.size === "number" ? item.size : null,
+      category: item.category || (item.type === "application/pdf" ? "document" : "image"),
+      alt_text: item.altText || item.name
+    };
+    if (item.id && /^[0-9a-fA-F-]{36}$/.test(item.id)) {
+      payload.id = item.id;
+    }
+    const { data, error } = await supabase.from("media").upsert(payload).select().single();
+    if (error) throw error;
+    return {
+      id: data.id,
+      name: data.file_name,
+      url: data.public_url,
+      storagePath: data.storage_path,
+      type: data.mime_type,
+      size: data.size_bytes ? `${Math.round(data.size_bytes / 1024)} KB` : item.size || "Unknown",
+      date: (data.created_at || "").slice(0, 7)
+    };
+  } catch (err) {
+    console.error("Supabase: Error saving media item:", err);
+    throw err;
   }
 }
 
@@ -815,7 +887,9 @@ export async function fetchResumeVersionsList() {
 }
 
 export async function uploadResumeVersion(file, versionStr = "v2026", notes = "", makeActive = true) {
-  if (!isSupabaseConfigured()) return null;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Resume upload requires an active Supabase Cloud connection.");
+  }
   try {
     const uploadRes = await uploadMediaFile(file, "resume", "resumes");
     if (makeActive) {
@@ -884,7 +958,9 @@ export async function fetchMessagesInbox() {
 }
 
 export async function updateMessageStatus(id, status) {
-  if (!isSupabaseConfigured()) return false;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Message updates require an active Supabase Cloud connection.");
+  }
   try {
     const { error } = await supabase
       .from("messages")
@@ -895,19 +971,21 @@ export async function updateMessageStatus(id, status) {
     return true;
   } catch (err) {
     console.error("Supabase: Error updating message status:", err);
-    return false;
+    throw err;
   }
 }
 
 export async function deleteMessage(id) {
-  if (!isSupabaseConfigured()) return false;
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Message deletion requires an active Supabase Cloud connection.");
+  }
   try {
     const { error } = await supabase.from("messages").delete().eq("id", id);
     if (error) throw error;
     return true;
   } catch (err) {
     console.error("Supabase: Error deleting message:", err);
-    return false;
+    throw err;
   }
 }
 
@@ -1197,7 +1275,7 @@ function mapProfileFromDb(row) {
     availability: row.availability,
     status: row.status,
     bio: row.bio,
-    aboutDetailed: Array.isArray(row.about_detailed) ? row.about_detailed : [],
+    aboutDetailed: row.about_detailed || [],
     snapshot: row.snapshot || {},
     contact: row.contact || {},
     primarySkills: Array.isArray(row.primary_skills) ? row.primary_skills : []

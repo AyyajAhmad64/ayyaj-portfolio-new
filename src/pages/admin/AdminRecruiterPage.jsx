@@ -11,6 +11,7 @@ export default function AdminRecruiterPage() {
   const [highlightsStr, setHighlightsStr] = useState("");
   const [metrics, setMetrics] = useState([]);
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -42,20 +43,27 @@ export default function AdminRecruiterPage() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    setIsSaving(true);
+    try {
+      setIsSaving(true);
+      setErrorNotice("");
 
-    const payload = {
-      summary,
-      availability,
-      targetRoles: targetRolesStr.split(",").map((s) => s.trim()).filter(Boolean),
-      highlights: highlightsStr.split("\n").map((s) => s.trim()).filter(Boolean),
-      coreMetrics: metrics
-    };
+      const payload = {
+        summary,
+        availability,
+        targetRoles: targetRolesStr.split(",").map((s) => s.trim()).filter(Boolean),
+        highlights: highlightsStr.split("\n").map((s) => s.trim()).filter(Boolean),
+        coreMetrics: metrics
+      };
 
-    await updateRecruiterData(payload);
-    setIsSaving(false);
-    setNotice("Recruiter portal configuration updated successfully.");
-    setTimeout(() => setNotice(""), 3000);
+      await updateRecruiterData(payload);
+      setNotice("Recruiter portal configuration updated successfully in Supabase.");
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      console.error("Failed to update recruiter settings:", err);
+      setErrorNotice(err.message || "Cloud save failed. Your changes were not saved.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!recruiter) return <div className="admin-page">Loading Recruiter configuration...</div>;
@@ -77,6 +85,32 @@ export default function AdminRecruiterPage() {
           Preview Recruiter View ↗
         </Button>
       </div>
+
+      {errorNotice && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: "var(--radius-sm)",
+            color: "#fca5a5",
+            fontSize: "13px",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}
+        >
+          <span>⚠️ <strong>Cloud save failed:</strong> {errorNotice}</span>
+          <button
+            type="button"
+            onClick={() => setErrorNotice("")}
+            style={{ background: "transparent", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: "14px" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div

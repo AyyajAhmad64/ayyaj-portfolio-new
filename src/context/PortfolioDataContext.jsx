@@ -314,8 +314,16 @@ export function PortfolioDataProvider({ children }) {
           await fetchFromCloud();
           return result;
         },
-        saveMediaItem,
-        deleteMediaItem,
+        saveMediaItem: async (...args) => {
+          const result = await saveMediaItem(...args);
+          await fetchFromCloud();
+          return result;
+        },
+        deleteMediaItem: async (...args) => {
+          const result = await deleteMediaItem(...args);
+          await fetchFromCloud();
+          return result;
+        },
         resetToDefaults: async (...args) => {
           const result = await resetToDefaults(...args);
           await fetchFromCloud();

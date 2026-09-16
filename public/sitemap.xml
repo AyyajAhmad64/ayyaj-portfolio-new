@@ -56,6 +56,21 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://ayyajahmad64.github.io/achievements/mca-cloud-admission</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://ayyajahmad64.github.io/achievements/bqarlson-selection</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://ayyajahmad64.github.io/achievements/bca-graduation</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://ayyajahmad64.github.io/certifications</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>

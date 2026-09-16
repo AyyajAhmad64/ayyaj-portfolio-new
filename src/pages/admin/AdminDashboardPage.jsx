@@ -31,6 +31,7 @@ export default function AdminDashboardPage() {
 
   const [profile, setProfile] = useState(null);
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
   const isCloud = isSupabaseConfigured();
 
   const loadData = async () => {
@@ -67,10 +68,17 @@ export default function AdminDashboardPage() {
 
   const handleReset = async () => {
     if (window.confirm("Reset all CMS entities to original verified defaults? Any custom drafts will be refreshed.")) {
-      await resetToDefaults();
-      await loadData();
-      setNotice("CMS data reset to initial verified records.");
-      setTimeout(() => setNotice(""), 3000);
+      setErrorNotice("");
+      setNotice("");
+      try {
+        await resetToDefaults();
+        await loadData();
+        setNotice("CMS data reset to initial verified records.");
+        setTimeout(() => setNotice(""), 3000);
+      } catch (err) {
+        console.error("Failed to reset CMS defaults:", err);
+        setErrorNotice(err.message || "Cloud reset failed. Your data was not reset.");
+      }
     }
   };
 
@@ -121,6 +129,22 @@ export default function AdminDashboardPage() {
           }}
         >
           {notice}
+        </div>
+      )}
+
+      {errorNotice && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid var(--accent-rose)",
+            borderRadius: "var(--radius-sm)",
+            color: "var(--accent-rose)",
+            fontSize: "13px",
+            marginBottom: "20px"
+          }}
+        >
+          {errorNotice}
         </div>
       )}
 

@@ -89,9 +89,9 @@ export default function ContactPage() {
     },
     {
       label: "LOCATION",
-      value: "Hinjawadi, Pune, Maharashtra, India",
-      href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("Hinjawadi, Pune, Maharashtra, India")}`,
-      copyValue: "Hinjawadi, Pune, Maharashtra, India",
+      value: profile?.location || "Hinjawadi, Pune, Maharashtra, India",
+      href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(profile?.location || "Hinjawadi, Pune, Maharashtra, India")}`,
+      copyValue: profile?.location || "Hinjawadi, Pune, Maharashtra, India",
       actionText: "View on Google Maps",
       target: "_blank"
     }
@@ -179,8 +179,9 @@ export default function ContactPage() {
         <form onSubmit={handleSubmitMessage} style={{ display: "grid", gap: "16px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
             <div>
-              <label className="admin-label">YOUR NAME</label>
+              <label htmlFor="contact-name" className="admin-label">YOUR NAME</label>
               <input
+                id="contact-name"
                 type="text"
                 required
                 value={formData.name}
@@ -191,8 +192,9 @@ export default function ContactPage() {
             </div>
 
             <div>
-              <label className="admin-label">YOUR EMAIL ADDRESS</label>
+              <label htmlFor="contact-email" className="admin-label">YOUR EMAIL ADDRESS</label>
               <input
+                id="contact-email"
                 type="email"
                 required
                 value={formData.email}
@@ -204,8 +206,9 @@ export default function ContactPage() {
           </div>
 
           <div>
-            <label className="admin-label">SUBJECT</label>
+            <label htmlFor="contact-subject" className="admin-label">SUBJECT</label>
             <input
+              id="contact-subject"
               type="text"
               required
               value={formData.subject}
@@ -216,8 +219,9 @@ export default function ContactPage() {
           </div>
 
           <div>
-            <label className="admin-label">MESSAGE</label>
+            <label htmlFor="contact-message" className="admin-label">MESSAGE</label>
             <textarea
+              id="contact-message"
               rows={4}
               required
               value={formData.message}

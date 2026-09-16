@@ -8,8 +8,10 @@ import SEO from "../../components/SEO";
 export default function AdminMediaPage() {
   const [mediaList, setMediaList] = useState([]);
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
   const [copiedId, setCopiedId] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [newItem, setNewItem] = useState({
     name: "",
     url: "",
@@ -50,6 +52,7 @@ export default function AdminMediaPage() {
 
     if (isSupabaseConfigured()) {
       setIsUploading(true);
+      setErrorNotice("");
       try {
         const uploadRes = await uploadMediaFile(file, bucket, "media");
         setNewItem({
@@ -61,34 +64,13 @@ export default function AdminMediaPage() {
         });
         setNotice(`Uploaded "${file.name}" to Supabase Storage (${bucket})`);
         setIsUploading(false);
-        return;
       } catch (err) {
-        console.warn("Direct cloud upload failed, falling back to local preview:", err);
+        console.error("Direct cloud upload failed:", err);
+        setErrorNotice(err.message || "Cloud upload failed. File was not uploaded.");
         setIsUploading(false);
       }
-    }
-
-    // Fallback if Supabase is unconfigured
-    if (file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setNewItem({
-          name: file.name,
-          url: event.target.result,
-          storagePath: "",
-          type: file.type,
-          size: sizeStr
-        });
-      };
-      reader.readAsDataURL(file);
     } else {
-      setNewItem({
-        name: file.name,
-        url: `/${file.name}`,
-        storagePath: "",
-        type: file.type || "application/octet-stream",
-        size: sizeStr
-      });
+      setErrorNotice("Supabase is not configured. Media upload requires an active Supabase Cloud connection.");
     }
   };
 
@@ -96,24 +78,39 @@ export default function AdminMediaPage() {
     e.preventDefault();
     if (!newItem.name || !newItem.url) return;
 
-    await saveMediaItem({
-      ...newItem,
-      size: newItem.size || "Unknown size"
-    });
+    try {
+      setIsSaving(true);
+      setErrorNotice("");
+      await saveMediaItem({
+        ...newItem,
+        size: newItem.size || "Unknown size"
+      });
 
-    await loadMedia();
-    setNewItem({ name: "", url: "", storagePath: "", type: "image/jpeg", size: "" });
-    setShowAddForm(false);
-    setNotice(`Media asset "${newItem.name}" saved to library.`);
-    setTimeout(() => setNotice(""), 3000);
+      await loadMedia();
+      setNewItem({ name: "", url: "", storagePath: "", type: "image/jpeg", size: "" });
+      setShowAddForm(false);
+      setNotice(`Media asset "${newItem.name}" saved to library.`);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      console.error("Failed to save media item:", err);
+      setErrorNotice(err.message || "Cloud save failed. Media item was not saved.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (item) => {
     if (window.confirm(`Delete media asset "${item.name}"?`)) {
-      await deleteMediaItem(item.id, item.storagePath);
-      await loadMedia();
-      setNotice(`Media asset "${item.name}" removed.`);
-      setTimeout(() => setNotice(""), 3000);
+      try {
+        setErrorNotice("");
+        await deleteMediaItem(item.id, item.storagePath);
+        await loadMedia();
+        setNotice(`Media asset "${item.name}" removed.`);
+        setTimeout(() => setNotice(""), 3000);
+      } catch (err) {
+        console.error("Failed to delete media item:", err);
+        setErrorNotice(err.message || "Cloud deletion failed. Media asset was not deleted.");
+      }
     }
   };
 
@@ -134,6 +131,32 @@ export default function AdminMediaPage() {
           {showAddForm ? "Close Form" : "+ Add Media Asset"}
         </Button>
       </div>
+
+      {errorNotice && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: "var(--radius-sm)",
+            color: "#fca5a5",
+            fontSize: "13px",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}
+        >
+          <span>⚠️ <strong>Cloud operation failed:</strong> {errorNotice}</span>
+          <button
+            type="button"
+            onClick={() => setErrorNotice("")}
+            style={{ background: "transparent", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: "14px" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div

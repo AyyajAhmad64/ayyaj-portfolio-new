@@ -48,7 +48,9 @@ export default function ProjectDetailPage() {
     <div className="project-detail-page-container">
       <SEO
         title={project.title}
-        description={`${project.title} — ${project.type}. ${project.description}`}
+        description={`${project.title} — ${project.type}. ${project.description || project.summary}`}
+        image={project.image || project.thumbnail}
+        type="article"
       />
 
       {/* Back Navigation Bar */}

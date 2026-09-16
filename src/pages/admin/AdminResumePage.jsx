@@ -10,6 +10,7 @@ export default function AdminResumePage() {
   const [resumeDrive, setResumeDrive] = useState("");
   const [resumePdf, setResumePdf] = useState("");
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [resumeVersions, setResumeVersions] = useState([]);
@@ -34,52 +35,62 @@ export default function AdminResumePage() {
   const handleSave = async (e) => {
     e.preventDefault();
     setIsSaving(true);
+    setErrorNotice("");
+    setNotice("");
 
-    const updatedContact = {
-      ...profile.contact,
-      resumeDrive,
-      resumePdf
-    };
+    try {
+      const updatedContact = {
+        ...profile.contact,
+        resumeDrive,
+        resumePdf
+      };
 
-    await updateProfile({ contact: updatedContact });
-    setNotice("Resume URLs and download pathways updated successfully.");
-    setIsSaving(false);
-    setTimeout(() => setNotice(""), 3000);
+      await updateProfile({ contact: updatedContact });
+      setNotice("Resume URLs and download pathways updated successfully.");
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      console.error("Failed to update resume pathways:", err);
+      setErrorNotice(err.message || "Cloud save failed. Your changes were not saved.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePdfUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setIsUploading(true);
+    setErrorNotice("");
+    setNotice("");
 
-    if (isSupabaseConfigured()) {
-      try {
-        const vNum = `v${new Date().getFullYear()}.${resumeVersions.length + 1}`;
-        const newVersion = await uploadResumeVersion(file, vNum, versionNotes || "Admin upload");
-        if (newVersion?.file_url) {
-          setResumePdf(newVersion.file_url);
-          const updatedContact = {
-            ...profile.contact,
-            resumePdf: newVersion.file_url
-          };
-          await updateProfile({ contact: updatedContact });
-          await loadData();
-          setNotice(`Resume PDF uploaded to Supabase Storage: ${vNum}`);
-          setIsUploading(false);
-          setTimeout(() => setNotice(""), 3000);
-          return;
-        }
-      } catch (err) {
-        console.error("Failed to upload resume to Supabase:", err);
-        setNotice(`Cloud upload failed: ${err.message}`);
-      }
+    if (!isSupabaseConfigured()) {
+      setIsUploading(false);
+      setErrorNotice("Cloud save failed: Supabase is not configured. Local fallback is disabled.");
+      return;
     }
 
-    // Local fallback
-    setResumePdf(file.name);
-    setIsUploading(false);
-    setNotice(`Configured local filename "${file.name}". Please ensure it exists in public/ directory.`);
-    setTimeout(() => setNotice(""), 3000);
+    try {
+      const vNum = `v${new Date().getFullYear()}.${resumeVersions.length + 1}`;
+      const newVersion = await uploadResumeVersion(file, vNum, versionNotes || "Admin upload");
+      if (newVersion?.file_url) {
+        setResumePdf(newVersion.file_url);
+        const updatedContact = {
+          ...profile.contact,
+          resumePdf: newVersion.file_url
+        };
+        await updateProfile({ contact: updatedContact });
+        await loadData();
+        setNotice(`Resume PDF uploaded to Supabase Storage: ${vNum}`);
+        setTimeout(() => setNotice(""), 3000);
+        return;
+      }
+      throw new Error("Upload succeeded but failed to return a valid cloud storage URL.");
+    } catch (err) {
+      console.error("Failed to upload resume to Supabase:", err);
+      setErrorNotice(`Cloud upload failed: ${err.message || "Unknown error"}. Your changes were not saved.`);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   if (!profile) return <div className="admin-page">Loading resume configuration...</div>;
@@ -130,6 +141,22 @@ export default function AdminResumePage() {
           }}
         >
           {notice}
+        </div>
+      )}
+
+      {errorNotice && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid var(--accent-rose)",
+            borderRadius: "var(--radius-sm)",
+            color: "var(--accent-rose)",
+            fontSize: "13px",
+            marginBottom: "20px"
+          }}
+        >
+          {errorNotice}
         </div>
       )}
 

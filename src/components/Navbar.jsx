@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { usePortfolioMode } from "../context/ModeContext";
+import { usePortfolioData } from "../context/PortfolioDataContext";
 import ModeSwitcher from "./ModeSwitcher";
 import Button from "./Button";
 import { scrollToTop } from "../utils/scrollUtils";
@@ -9,6 +10,7 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const { isRecruiter } = usePortfolioMode();
+  const { profile } = usePortfolioData();
 
   // Close mobile menu on route navigation
   useEffect(() => {
@@ -187,15 +189,23 @@ export default function Navbar() {
           </div>
 
           <div className="mobile-nav-footer-actions">
-            <a
-              href="/Ayyaj%20Kalandar%20Shaikh%20-%20Resume.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-primary btn-sm"
-              style={{ justifyContent: "center" }}
-            >
-              📄 View Resume PDF ↗
-            </a>
+            {(() => {
+              const resumePdf = profile?.contact?.resumePdf || "Ayyaj Kalandar Shaikh - Resume.pdf";
+              const resumePdfUrl = resumePdf.startsWith("http")
+                ? resumePdf
+                : (resumePdf.startsWith("/") ? resumePdf : `/${encodeURIComponent(resumePdf)}`);
+              return (
+                <a
+                  href={resumePdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary btn-sm"
+                  style={{ justifyContent: "center" }}
+                >
+                  📄 View Resume PDF ↗
+                </a>
+              );
+            })()}
             <Button to="/resume" variant="outline" size="sm" style={{ justifyContent: "center" }}>
               Interactive Resume Page →
             </Button>

@@ -11,6 +11,7 @@ export default function AdminHomePage() {
   const [settings, setSettings] = useState(null);
   const [activeTab, setActiveTab] = useState("hero"); // 'hero' | 'sections' | 'principles' | 'cta'
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   // Hero State
@@ -183,13 +184,14 @@ export default function AdminHomePage() {
         })
       ]);
 
+      setErrorNotice("");
       if (refresh) await refresh();
 
       setNotice("✓ Home page configuration and content successfully saved to Supabase!");
       setTimeout(() => setNotice(""), 3500);
     } catch (err) {
       console.error("Failed to save home page:", err);
-      alert("Error saving home page: " + err.message);
+      setErrorNotice(err.message || "Cloud save failed. Your changes were not saved.");
     } finally {
       setIsSaving(false);
     }
@@ -219,6 +221,32 @@ export default function AdminHomePage() {
           </Button>
         </div>
       </div>
+
+      {errorNotice && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: "var(--radius-sm)",
+            color: "#fca5a5",
+            fontSize: "13px",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}
+        >
+          <span>⚠️ <strong>Cloud save failed:</strong> {errorNotice}</span>
+          <button
+            type="button"
+            onClick={() => setErrorNotice("")}
+            style={{ background: "transparent", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: "14px" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div

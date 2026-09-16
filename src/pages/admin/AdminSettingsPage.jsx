@@ -14,6 +14,7 @@ export default function AdminSettingsPage() {
   const [primaryAccent, setPrimaryAccent] = useState("#38bdf8");
   const [secondaryAccent, setSecondaryAccent] = useState("#f59e0b");
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
@@ -33,33 +34,46 @@ export default function AdminSettingsPage() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    setIsSaving(true);
+    try {
+      setIsSaving(true);
+      setErrorNotice("");
 
-    await updateSettings({
-      siteTitle,
-      publicLocation,
-      enableRecruiterMode,
-      showAvailabilityBadge,
-      primaryAccent,
-      secondaryAccent
-    });
+      await updateSettings({
+        siteTitle,
+        publicLocation,
+        enableRecruiterMode,
+        showAvailabilityBadge,
+        primaryAccent,
+        secondaryAccent
+      });
 
-    setIsSaving(false);
-    setNotice("Global system settings updated successfully.");
-    setTimeout(() => setNotice(""), 3000);
+      setNotice("Global system settings updated successfully in Supabase.");
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      console.error("Failed to update settings:", err);
+      setErrorNotice(err.message || "Cloud save failed. Your changes were not saved.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleReset = async () => {
-    await resetToDefaults();
-    setShowResetConfirm(false);
-    setNotice("Platform data restored to verified initial defaults.");
-    const s = await getSettings();
-    setSettings(s);
-    setSiteTitle(s.siteTitle);
-    setPublicLocation(s.publicLocation);
-    setEnableRecruiterMode(s.enableRecruiterMode);
-    setShowAvailabilityBadge(s.showAvailabilityBadge);
-    setTimeout(() => setNotice(""), 3500);
+    try {
+      setErrorNotice("");
+      await resetToDefaults();
+      setShowResetConfirm(false);
+      setNotice("Platform data restored to verified initial defaults.");
+      const s = await getSettings();
+      setSettings(s);
+      setSiteTitle(s.siteTitle);
+      setPublicLocation(s.publicLocation);
+      setEnableRecruiterMode(s.enableRecruiterMode);
+      setShowAvailabilityBadge(s.showAvailabilityBadge);
+      setTimeout(() => setNotice(""), 3500);
+    } catch (err) {
+      console.error("Failed to reset settings:", err);
+      setErrorNotice(err.message || "Reset failed.");
+    }
   };
 
   if (!settings) return <div className="admin-page">Loading settings...</div>;
@@ -77,6 +91,32 @@ export default function AdminSettingsPage() {
           </p>
         </div>
       </div>
+
+      {errorNotice && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: "var(--radius-sm)",
+            color: "#fca5a5",
+            fontSize: "13px",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}
+        >
+          <span>⚠️ <strong>Cloud operation failed:</strong> {errorNotice}</span>
+          <button
+            type="button"
+            onClick={() => setErrorNotice("")}
+            style={{ background: "transparent", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: "14px" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div

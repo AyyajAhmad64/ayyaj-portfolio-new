@@ -246,19 +246,21 @@ export async function getProfile() {
   return getStore().profile;
 }
 
-export async function updateProfile(updates) {
-  const store = getStore();
-  store.profile = { ...store.profile, ...updates };
-  saveStore(store);
-
-  if (isSupabaseConfigured()) {
-    try {
-      await supabaseService.updateProfileInDb(store.profile);
-    } catch (e) {
-      console.warn("Could not push profile update to Supabase:", e);
-    }
+function assertCloudConfigured() {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured. Cloud CMS mutations require an active Supabase Cloud connection.");
   }
+}
 
+export async function updateProfile(updates) {
+  assertCloudConfigured();
+  const cloudUpdated = await supabaseService.updateProfileInDb(updates);
+  if (!cloudUpdated) {
+    throw new Error("Cloud save failed. Profile was not updated.");
+  }
+  const store = getStore();
+  store.profile = { ...store.profile, ...cloudUpdated };
+  saveStore(store);
   return store.profile;
 }
 
@@ -284,31 +286,20 @@ export async function getProjectBySlug(slug) {
 }
 
 export async function saveProject(project) {
+  assertCloudConfigured();
+  const savedProject = await supabaseService.upsertProject(project);
+  if (!savedProject) {
+    throw new Error("Cloud save failed. Project was not saved.");
+  }
+
   const store = getStore();
   const list = store.projects || [];
-  const existingIdx = list.findIndex((p) => p.id === project.id || (project.slug && p.slug === project.slug));
-
-  let savedProject = { ...project };
-
-  if (isSupabaseConfigured()) {
-    try {
-      const dbResult = await supabaseService.upsertProject(project);
-      if (dbResult) savedProject = dbResult;
-    } catch (e) {
-      console.warn("Could not push project to Supabase, saving locally:", e);
-    }
-  }
+  const existingIdx = list.findIndex((p) => p.id === savedProject.id || (savedProject.slug && p.slug === savedProject.slug));
 
   if (existingIdx !== -1) {
     list[existingIdx] = { ...list[existingIdx], ...savedProject, updatedAt: new Date().toISOString() };
   } else {
-    const newProject = {
-      ...savedProject,
-      id: savedProject.id || `proj-${Date.now()}`,
-      slug: savedProject.slug || savedProject.title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      createdAt: new Date().toISOString()
-    };
-    list.unshift(newProject);
+    list.unshift(savedProject);
   }
 
   store.projects = list;
@@ -317,18 +308,12 @@ export async function saveProject(project) {
 }
 
 export async function deleteProject(id) {
+  assertCloudConfigured();
+  await supabaseService.deleteProjectFromDb(id);
+
   const store = getStore();
   store.projects = (store.projects || []).filter((p) => p.id !== id && p.slug !== id);
   saveStore(store);
-
-  if (isSupabaseConfigured()) {
-    try {
-      await supabaseService.deleteProjectFromDb(id);
-    } catch (e) {
-      console.warn("Could not delete project from Supabase:", e);
-    }
-  }
-
   return true;
 }
 
@@ -349,24 +334,19 @@ export async function getExperience() {
 }
 
 export async function saveExperience(item) {
-  const store = getStore();
-  const list = store.experience || [];
-  let saved = { ...item };
-
-  if (isSupabaseConfigured()) {
-    try {
-      const cloud = await supabaseService.upsertExperience(item);
-      if (cloud) saved = cloud;
-    } catch (e) {
-      console.warn("Could not save experience to Supabase:", e);
-    }
+  assertCloudConfigured();
+  const saved = await supabaseService.upsertExperience(item);
+  if (!saved) {
+    throw new Error("Cloud save failed. Experience was not saved.");
   }
 
-  const existingIdx = list.findIndex((e) => e.id === item.id);
+  const store = getStore();
+  const list = store.experience || [];
+  const existingIdx = list.findIndex((e) => e.id === saved.id);
   if (existingIdx !== -1) {
     list[existingIdx] = { ...list[existingIdx], ...saved };
   } else {
-    list.unshift({ ...saved, id: saved.id || `exp-${Date.now()}` });
+    list.unshift(saved);
   }
 
   store.experience = list;
@@ -375,17 +355,12 @@ export async function saveExperience(item) {
 }
 
 export async function deleteExperience(id) {
+  assertCloudConfigured();
+  await supabaseService.deleteExperienceFromDb(id);
+
   const store = getStore();
   store.experience = (store.experience || []).filter((e) => e.id !== id);
   saveStore(store);
-
-  if (isSupabaseConfigured()) {
-    try {
-      await supabaseService.deleteExperienceFromDb(id);
-    } catch (e) {
-      console.warn("Could not delete experience from Supabase:", e);
-    }
-  }
   return true;
 }
 
@@ -406,24 +381,19 @@ export async function getEducation() {
 }
 
 export async function saveEducation(item) {
-  const store = getStore();
-  const list = store.education || [];
-  let saved = { ...item };
-
-  if (isSupabaseConfigured()) {
-    try {
-      const cloud = await supabaseService.upsertEducation(item);
-      if (cloud) saved = cloud;
-    } catch (e) {
-      console.warn("Could not save education to Supabase:", e);
-    }
+  assertCloudConfigured();
+  const saved = await supabaseService.upsertEducation(item);
+  if (!saved) {
+    throw new Error("Cloud save failed. Education was not saved.");
   }
 
-  const existingIdx = list.findIndex((e) => e.id === item.id);
+  const store = getStore();
+  const list = store.education || [];
+  const existingIdx = list.findIndex((e) => e.id === saved.id);
   if (existingIdx !== -1) {
     list[existingIdx] = { ...list[existingIdx], ...saved };
   } else {
-    list.push({ ...saved, id: saved.id || `edu-${Date.now()}` });
+    list.push(saved);
   }
 
   store.education = list;
@@ -432,17 +402,12 @@ export async function saveEducation(item) {
 }
 
 export async function deleteEducation(id) {
+  assertCloudConfigured();
+  await supabaseService.deleteEducationFromDb(id);
+
   const store = getStore();
   store.education = (store.education || []).filter((e) => e.id !== id);
   saveStore(store);
-
-  if (isSupabaseConfigured()) {
-    try {
-      await supabaseService.deleteEducationFromDb(id);
-    } catch (e) {
-      console.warn("Could not delete education from Supabase:", e);
-    }
-  }
   return true;
 }
 
@@ -463,18 +428,12 @@ export async function getSkills() {
 }
 
 export async function saveSkills(skillsGroupList) {
+  assertCloudConfigured();
+  await supabaseService.upsertSkillsBatch(skillsGroupList);
+
   const store = getStore();
   store.skills = skillsGroupList;
   saveStore(store);
-
-  if (isSupabaseConfigured()) {
-    try {
-      await supabaseService.upsertSkillsBatch(skillsGroupList);
-    } catch (e) {
-      console.warn("Could not save skills to Supabase:", e);
-    }
-  }
-
   return store.skills;
 }
 
@@ -495,24 +454,19 @@ export async function getCertifications() {
 }
 
 export async function saveCertification(cert) {
-  const store = getStore();
-  const list = store.certifications || [];
-  let saved = { ...cert };
-
-  if (isSupabaseConfigured()) {
-    try {
-      const cloud = await supabaseService.upsertCertification(cert);
-      if (cloud) saved = cloud;
-    } catch (e) {
-      console.warn("Could not save certification to Supabase:", e);
-    }
+  assertCloudConfigured();
+  const saved = await supabaseService.upsertCertification(cert);
+  if (!saved) {
+    throw new Error("Cloud save failed. Certification was not saved.");
   }
 
-  const existingIdx = list.findIndex((c) => c.id === cert.id);
+  const store = getStore();
+  const list = store.certifications || [];
+  const existingIdx = list.findIndex((c) => c.id === saved.id);
   if (existingIdx !== -1) {
     list[existingIdx] = { ...list[existingIdx], ...saved };
   } else {
-    list.unshift({ ...saved, id: saved.id || `cert-${Date.now()}` });
+    list.unshift(saved);
   }
 
   store.certifications = list;
@@ -521,17 +475,12 @@ export async function saveCertification(cert) {
 }
 
 export async function deleteCertification(id) {
+  assertCloudConfigured();
+  await supabaseService.deleteCertificationFromDb(id);
+
   const store = getStore();
   store.certifications = (store.certifications || []).filter((c) => c.id !== id);
   saveStore(store);
-
-  if (isSupabaseConfigured()) {
-    try {
-      await supabaseService.deleteCertificationFromDb(id);
-    } catch (e) {
-      console.warn("Could not delete certification from Supabase:", e);
-    }
-  }
   return true;
 }
 
@@ -552,28 +501,19 @@ export async function getAchievements() {
 }
 
 export async function saveAchievement(ach) {
-  const store = getStore();
-  const list = store.achievements || [];
-  let saved = { ...ach };
-
-  if (isSupabaseConfigured()) {
-    try {
-      const cloud = await supabaseService.upsertAchievement(ach);
-      if (cloud) saved = cloud;
-    } catch (e) {
-      console.warn("Could not save achievement to Supabase:", e);
-    }
+  assertCloudConfigured();
+  const saved = await supabaseService.upsertAchievement(ach);
+  if (!saved) {
+    throw new Error("Cloud save failed. Achievement was not saved.");
   }
 
-  const existingIdx = list.findIndex((a) => a.id === ach.id);
+  const store = getStore();
+  const list = store.achievements || [];
+  const existingIdx = list.findIndex((a) => a.id === saved.id || (saved.slug && a.slug === saved.slug));
   if (existingIdx !== -1) {
     list[existingIdx] = { ...list[existingIdx], ...saved };
   } else {
-    list.unshift({
-      ...saved,
-      id: saved.id || `ach-${Date.now()}`,
-      slug: saved.slug || saved.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")
-    });
+    list.unshift(saved);
   }
 
   store.achievements = list;
@@ -582,17 +522,12 @@ export async function saveAchievement(ach) {
 }
 
 export async function deleteAchievement(id) {
-  const store = getStore();
-  store.achievements = (store.achievements || []).filter((a) => a.id !== id);
-  saveStore(store);
+  assertCloudConfigured();
+  await supabaseService.deleteAchievementFromDb(id);
 
-  if (isSupabaseConfigured()) {
-    try {
-      await supabaseService.deleteAchievementFromDb(id);
-    } catch (e) {
-      console.warn("Could not delete achievement from Supabase:", e);
-    }
-  }
+  const store = getStore();
+  store.achievements = (store.achievements || []).filter((a) => a.id !== id && a.slug !== id);
+  saveStore(store);
   return true;
 }
 
@@ -613,24 +548,19 @@ export async function getGallery() {
 }
 
 export async function saveGalleryItem(item) {
-  const store = getStore();
-  const list = store.gallery || [];
-  let saved = { ...item };
-
-  if (isSupabaseConfigured()) {
-    try {
-      const cloud = await supabaseService.upsertGalleryItem(item);
-      if (cloud) saved = cloud;
-    } catch (e) {
-      console.warn("Could not save gallery item to Supabase:", e);
-    }
+  assertCloudConfigured();
+  const saved = await supabaseService.upsertGalleryItem(item);
+  if (!saved) {
+    throw new Error("Cloud save failed. Gallery item was not saved.");
   }
 
-  const existingIdx = list.findIndex((g) => g.id === item.id);
+  const store = getStore();
+  const list = store.gallery || [];
+  const existingIdx = list.findIndex((g) => g.id === saved.id);
   if (existingIdx !== -1) {
     list[existingIdx] = { ...list[existingIdx], ...saved };
   } else {
-    list.unshift({ ...saved, id: saved.id || `gal-${Date.now()}` });
+    list.unshift(saved);
   }
 
   store.gallery = list;
@@ -639,17 +569,12 @@ export async function saveGalleryItem(item) {
 }
 
 export async function deleteGalleryItem(id) {
+  assertCloudConfigured();
+  await supabaseService.deleteGalleryItemFromDb(id);
+
   const store = getStore();
   store.gallery = (store.gallery || []).filter((g) => g.id !== id);
   saveStore(store);
-
-  if (isSupabaseConfigured()) {
-    try {
-      await supabaseService.deleteGalleryItemFromDb(id);
-    } catch (e) {
-      console.warn("Could not delete gallery item from Supabase:", e);
-    }
-  }
   return true;
 }
 
@@ -670,17 +595,15 @@ export async function getRecruiterData() {
 }
 
 export async function updateRecruiterData(updates) {
-  const store = getStore();
-  store.recruiter = { ...store.recruiter, ...updates };
-  saveStore(store);
-
-  if (isSupabaseConfigured()) {
-    try {
-      await supabaseService.updateRecruiterInDb(store.recruiter);
-    } catch (e) {
-      console.warn("Could not update recruiter settings in Supabase:", e);
-    }
+  assertCloudConfigured();
+  const saved = await supabaseService.updateRecruiterInDb(updates);
+  if (!saved) {
+    throw new Error("Cloud save failed. Recruiter data was not updated.");
   }
+
+  const store = getStore();
+  store.recruiter = { ...store.recruiter, ...saved };
+  saveStore(store);
   return store.recruiter;
 }
 
@@ -698,17 +621,15 @@ export async function getSettings() {
 }
 
 export async function updateSettings(updates) {
-  const store = getStore();
-  store.settings = { ...store.settings, ...updates };
-  saveStore(store);
-
-  if (isSupabaseConfigured()) {
-    try {
-      await supabaseService.updateSiteSettingsInDb(store.settings);
-    } catch (e) {
-      console.warn("Could not update site settings in Supabase:", e);
-    }
+  assertCloudConfigured();
+  const saved = await supabaseService.updateSiteSettingsInDb(updates);
+  if (!saved) {
+    throw new Error("Cloud save failed. Site settings were not updated.");
   }
+
+  const store = getStore();
+  store.settings = { ...store.settings, ...saved };
+  saveStore(store);
   return store.settings;
 }
 
@@ -729,26 +650,32 @@ export async function getMedia() {
 }
 
 export async function saveMediaItem(item) {
+  assertCloudConfigured();
+  const saved = await supabaseService.upsertMediaItem(item);
+  if (!saved) {
+    throw new Error("Cloud save failed. Media item was not saved.");
+  }
+
   const store = getStore();
   const list = store.media || [];
-  list.unshift({ ...item, id: item.id || `media-${Date.now()}`, date: new Date().toISOString().slice(0, 7) });
+  const existingIdx = list.findIndex((m) => m.id === saved.id);
+  if (existingIdx !== -1) {
+    list[existingIdx] = { ...list[existingIdx], ...saved };
+  } else {
+    list.unshift(saved);
+  }
   store.media = list;
   saveStore(store);
-  return item;
+  return saved;
 }
 
 export async function deleteMediaItem(id, storagePath = null) {
+  assertCloudConfigured();
+  await supabaseService.deleteMediaFromStorage(storagePath, id);
+
   const store = getStore();
   store.media = (store.media || []).filter((m) => m.id !== id);
   saveStore(store);
-
-  if (isSupabaseConfigured() && storagePath) {
-    try {
-      await supabaseService.deleteMediaFromStorage(storagePath, id);
-    } catch (e) {
-      console.warn("Could not delete media asset from Supabase Storage:", e);
-    }
-  }
   return true;
 }
 

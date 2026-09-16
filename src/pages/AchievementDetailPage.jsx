@@ -62,14 +62,27 @@ export default function AchievementDetailPage() {
           </p>
         </div>
 
-        {achievement.details && (
+        {(achievement.details || achievement.impact) && (
           <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "16px" }}>
             <h3 style={{ fontSize: "15px", color: "var(--accent-cyan)", marginBottom: "6px" }}>
               Context &amp; Academic Significance
             </h3>
             <p style={{ color: "var(--text-muted)", fontSize: "13.5px", lineHeight: "1.6" }}>
-              {achievement.details}
+              {achievement.details || achievement.impact}
             </p>
+          </div>
+        )}
+
+        {Array.isArray(achievement.highlights) && achievement.highlights.length > 0 && (
+          <div style={{ borderTop: "1px solid var(--border-subtle)", paddingTop: "16px" }}>
+            <h3 style={{ fontSize: "15px", color: "var(--accent-amber)", marginBottom: "10px" }}>
+              Milestone Highlights &amp; Outcomes
+            </h3>
+            <ul style={{ margin: 0, paddingLeft: "18px", color: "var(--text-muted)", fontSize: "13.5px", lineHeight: "1.7" }}>
+              {achievement.highlights.map((h, i) => (
+                <li key={i}>{h}</li>
+              ))}
+            </ul>
           </div>
         )}
       </div>

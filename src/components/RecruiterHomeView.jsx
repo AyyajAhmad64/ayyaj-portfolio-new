@@ -46,6 +46,9 @@ export default function RecruiterHomeView() {
             <img
               src="/profile.jpg"
               alt={profileData.name}
+              width="120"
+              height="120"
+              decoding="async"
               className="recruiter-photo"
               onError={(e) => {
                 e.currentTarget.src =

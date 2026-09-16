@@ -7,6 +7,8 @@ export default function AdminAchievementsPage() {
   const [list, setList] = useState([]);
   const [editing, setEditing] = useState(null);
   const [notice, setNotice] = useState("");
+  const [errorNotice, setErrorNotice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const loadData = async () => {
     const data = await getAchievements();
@@ -41,25 +43,41 @@ export default function AdminAchievementsPage() {
     e.preventDefault();
     if (!editing) return;
 
-    const payload = {
-      ...editing,
-      highlights: editing.highlightsStr.split("\n").map((s) => s.trim()).filter(Boolean)
-    };
-    delete payload.highlightsStr;
+    try {
+      setIsSaving(true);
+      setErrorNotice("");
 
-    await saveAchievement(payload);
-    await loadData();
-    setEditing(null);
-    setNotice("Achievement saved.");
-    setTimeout(() => setNotice(""), 3000);
+      const payload = {
+        ...editing,
+        highlights: editing.highlightsStr.split("\n").map((s) => s.trim()).filter(Boolean)
+      };
+      delete payload.highlightsStr;
+
+      await saveAchievement(payload);
+      await loadData();
+      setEditing(null);
+      setNotice("Achievement saved to Supabase.");
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      console.error("Failed to save achievement:", err);
+      setErrorNotice(err.message || "Cloud save failed. Your changes were not saved.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = async (id, title) => {
     if (window.confirm(`Delete achievement "${title}"?`)) {
-      await deleteAchievement(id);
-      await loadData();
-      setNotice("Achievement deleted.");
-      setTimeout(() => setNotice(""), 3000);
+      try {
+        setErrorNotice("");
+        await deleteAchievement(id);
+        await loadData();
+        setNotice("Achievement deleted from Supabase.");
+        setTimeout(() => setNotice(""), 3000);
+      } catch (err) {
+        console.error("Failed to delete achievement:", err);
+        setErrorNotice(err.message || "Cloud deletion failed. Record was not deleted.");
+      }
     }
   };
 
@@ -80,6 +98,32 @@ export default function AdminAchievementsPage() {
           + Add Milestone
         </Button>
       </div>
+
+      {errorNotice && (
+        <div
+          style={{
+            padding: "12px 16px",
+            background: "rgba(239, 68, 68, 0.12)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: "var(--radius-sm)",
+            color: "#fca5a5",
+            fontSize: "13px",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between"
+          }}
+        >
+          <span>⚠️ <strong>Cloud operation failed:</strong> {errorNotice}</span>
+          <button
+            type="button"
+            onClick={() => setErrorNotice("")}
+            style={{ background: "transparent", border: "none", color: "#fca5a5", cursor: "pointer", fontSize: "14px" }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div style={{ padding: "10px 14px", background: "rgba(16, 185, 129, 0.12)", border: "1px solid var(--accent-emerald)", borderRadius: "var(--radius-sm)", color: "var(--accent-emerald)", fontSize: "13px", marginBottom: "20px" }}>
