@@ -177,18 +177,17 @@ export default function AdminMediaPage() {
       )}
 
       {showAddForm && (
-        <div className="card" style={{ marginBottom: "28px", border: "2px solid var(--accent-cyan)" }}>
+        <div className="card admin-upload-card" style={{ marginBottom: "28px", border: "2px solid var(--accent-cyan)" }}>
           <h2 className="section-title-sm" style={{ marginBottom: "16px" }}>Upload Media Asset</h2>
-          <form onSubmit={handleSaveItem} style={{ display: "grid", gap: "16px" }}>
+          <form onSubmit={handleSaveItem} className="admin-media-form">
             <div className="admin-form-grid-2">
-              <div>
+              <div className="admin-form-field">
                 <label className="admin-label">FILE SELECTOR (UPLOADS DIRECTLY TO SUPABASE STORAGE)</label>
                 <input
                   type="file"
                   onChange={handleFileUpload}
                   disabled={isUploading}
-                  className="admin-input"
-                  style={{ padding: "8px" }}
+                  className="admin-input admin-file-input"
                 />
                 {isUploading && (
                   <span style={{ fontSize: "12px", color: "var(--accent-amber)", marginTop: "4px", display: "block" }}>
@@ -197,7 +196,7 @@ export default function AdminMediaPage() {
                 )}
               </div>
 
-              <div>
+              <div className="admin-form-field">
                 <label className="admin-label">ASSET NAME / FILENAME</label>
                 <input
                   type="text"
@@ -211,7 +210,7 @@ export default function AdminMediaPage() {
             </div>
 
             <div className="admin-form-grid-2">
-              <div>
+              <div className="admin-form-field">
                 <label className="admin-label">PUBLIC URL OR PATH</label>
                 <input
                   type="text"
@@ -223,7 +222,7 @@ export default function AdminMediaPage() {
                 />
               </div>
 
-              <div>
+              <div className="admin-form-field">
                 <label className="admin-label">MIME TYPE</label>
                 <input
                   type="text"
@@ -235,7 +234,7 @@ export default function AdminMediaPage() {
               </div>
             </div>
 
-            <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+            <div className="admin-form-actions">
               <Button type="submit" variant="primary" disabled={isUploading || isSaving}>
                 {isSaving ? "Saving Asset..." : "Save Asset to Media Library"}
               </Button>
