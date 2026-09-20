@@ -43,8 +43,10 @@ export const defaultFeaturedItems = [
 export default function FeaturedSection({ heading, description }) {
   const {
     settings,
+    profile,
     projects = [],
     certifications = [],
+    gallery = [],
     experience = [],
     achievements = []
   } = usePortfolioData();
@@ -61,18 +63,30 @@ export default function FeaturedSection({ heading, description }) {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Resolve active items from settings or default fallback
-  const rawItems = Array.isArray(settings?.featuredItems) && settings.featuredItems.length > 0
-    ? settings.featuredItems
-    : defaultFeaturedItems;
+  // Resolve active items from settings or profile snapshot fallback
+  let rawItems = [];
+  if (Array.isArray(settings?.featuredItems)) {
+    rawItems = settings.featuredItems;
+  } else if (Array.isArray(profile?.snapshot?.home?.featuredItems)) {
+    rawItems = profile.snapshot.home.featuredItems;
+  } else {
+    rawItems = defaultFeaturedItems;
+  }
 
-  const activeItems = [...rawItems]
-    .filter((item) => item && item.enabled !== false)
+  const activeItems = (Array.isArray(rawItems) ? rawItems : [])
+    .filter((item) => item && item.enabled !== false && Boolean(item.contentId))
     .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
   if (activeItems.length === 0) {
     return null;
   }
+
+  const gridLayoutClass =
+    activeItems.length === 1
+      ? "has-1-item"
+      : activeItems.length === 2
+      ? "has-2-items"
+      : "has-3-or-more";
 
   return (
     <section className="home-section" id="projects" aria-label="Featured Showcase">
@@ -80,30 +94,22 @@ export default function FeaturedSection({ heading, description }) {
         <div>
           <span className="section-micro-label">CURATED SHOWCASE</span>
           <h2 className="home-section-title">
-            {heading || "Featured Work & Technical Credentials"}
+            {heading || "Featured Work"}
           </h2>
           <p className="home-section-desc">
-            {description || "Selected flagship projects, verified industry credentials, and cloud certifications demonstrate technical depth and production readiness."}
+            {description || "Selected flagship projects, verified industry credentials, and visual architecture highlights."}
           </p>
-        </div>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-          <Button to="/projects" variant="outline" size="sm">
-            All Projects ({projects.length}) →
-          </Button>
-          <Button to="/certifications" variant="ghost" size="sm">
-            All Certifications →
-          </Button>
         </div>
       </div>
 
-      <div className="featured-cards-grid">
+      <div className={`featured-cards-grid ${gridLayoutClass}`}>
         {activeItems.map((item, idx) => {
           const indexNum = `#0${idx + 1}`;
 
           // ── Case 1: PROJECT ──────────────────────────────────────
           if (item.type === "project") {
-            const proj = projects.find(
-              (p) => p.slug === item.contentId || p.id === item.contentId
+            const proj = (projects || []).find(
+              (p) => p && (p.slug === item.contentId || p.id === item.contentId)
             );
 
             if (!proj) {
@@ -167,8 +173,6 @@ export default function FeaturedSection({ heading, description }) {
                   ))}
                 </div>
 
-                <div style={{ height: "1px", background: "var(--border-subtle)", margin: "auto 0 16px", width: "100%" }} />
-
                 <div className="featured-card-actions">
                   <Button to={`/projects/${proj.slug}`} variant="outline" size="sm">
                     Explore Case Study →
@@ -191,12 +195,13 @@ export default function FeaturedSection({ heading, description }) {
 
           // ── Case 2: CERTIFICATION ────────────────────────────────
           if (item.type === "certification") {
-            const cert = certifications.find(
+            const cert = (certifications || []).find(
               (c) =>
-                c.id === item.contentId ||
-                c.credentialId === item.contentId ||
-                (c.name && c.name.toLowerCase().includes((item.contentId || "").toLowerCase())) ||
-                (c.title && c.title.toLowerCase().includes((item.contentId || "").toLowerCase()))
+                c &&
+                (c.id === item.contentId ||
+                  c.credentialId === item.contentId ||
+                  (c.name && c.name.toLowerCase().includes((item.contentId || "").toLowerCase())) ||
+                  (c.title && c.title.toLowerCase().includes((item.contentId || "").toLowerCase())))
             );
 
             const title = cert?.name || cert?.title || item.fallbackTitle || "Technical Certification";
@@ -214,7 +219,13 @@ export default function FeaturedSection({ heading, description }) {
                 {/* Visual Thumbnail: Image or Designed Credential Certificate Panel */}
                 <div className="showcase-thumb-panel" style={{ marginBottom: "14px" }}>
                   {certImage ? (
-                    <img src={certImage} alt={title} className="showcase-thumb-img" />
+                    <img
+                      src={certImage}
+                      alt={title}
+                      loading="lazy"
+                      decoding="async"
+                      className="showcase-thumb-img"
+                    />
                   ) : (
                     <div className="credential-preview-panel">
                       <div className="credential-preview-top">
@@ -339,8 +350,6 @@ export default function FeaturedSection({ heading, description }) {
                   </div>
                 )}
 
-                <div style={{ height: "1px", background: "var(--border-subtle)", margin: "auto 0 16px", width: "100%" }} />
-
                 <div className="featured-card-actions">
                   {verificationUrl ? (
                     <Button href={verificationUrl} target="_blank" rel="noopener noreferrer" variant="outline" size="sm">
@@ -356,13 +365,119 @@ export default function FeaturedSection({ heading, description }) {
             );
           }
 
-          // ── Case 3: ACHIEVEMENT ──────────────────────────────────
+          // ── Case 3: GALLERY ──────────────────────────────────────
+          if (item.type === "gallery") {
+            const gal = (gallery || []).find(
+              (g) =>
+                g &&
+                (g.id === item.contentId ||
+                  g.slug === item.contentId ||
+                  (g.title && g.title.toLowerCase().includes((item.contentId || "").toLowerCase())))
+            );
+
+            if (!gal) return null;
+
+            const galImage = gal.src || gal.thumbnail || gal.imageUrl || null;
+
+            return (
+              <article key={item.id || `feat-${idx}`} className="featured-project-card">
+                {/* Visual Thumbnail: Image or Designed Visual Fallback */}
+                <div className="showcase-thumb-panel" style={{ marginBottom: "14px" }}>
+                  {galImage ? (
+                    <img
+                      src={galImage}
+                      alt={gal.title}
+                      loading="lazy"
+                      decoding="async"
+                      className="showcase-thumb-img"
+                    />
+                  ) : (
+                    <div className="gallery-preview-panel">
+                      <div className="credential-preview-top">
+                        <span className="gallery-preview-badge">VISUAL SHOWCASE</span>
+                        <span style={{ fontSize: "10px", color: "#c084fc", fontWeight: "600", fontFamily: "var(--font-mono)" }}>
+                          📷 {gal.category || "MEDIA"}
+                        </span>
+                      </div>
+                      <div className="credential-preview-body">
+                        <div style={{ fontSize: "28px", lineHeight: "1", flexShrink: 0 }}>🎨</div>
+                        <div className="credential-preview-info">
+                          <div className="credential-preview-name" title={gal.title}>{gal.title}</div>
+                          <div style={{ fontSize: "11.5px", color: "var(--accent-cyan)" }}>
+                            {gal.category || "Interface & Architecture"}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="credential-preview-footer">
+                        <span>MEDIA ARCHITECTURE</span>
+                        <span>{gal.date || "2026"}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="featured-card-top">
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <span className="featured-index">{indexNum}</span>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: "700",
+                        padding: "2px 7px",
+                        borderRadius: "4px",
+                        background: "rgba(168, 85, 247, 0.15)",
+                        color: "#c084fc",
+                        border: "1px solid rgba(168, 85, 247, 0.3)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em"
+                      }}
+                    >
+                      {item.badge || "GALLERY"}
+                    </span>
+                  </div>
+
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      color: "var(--accent-cyan)",
+                      fontWeight: "600",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}
+                  >
+                    📷 {gal.category || "Visual"}
+                  </span>
+                </div>
+
+                <div className="featured-card-meta">{gal.category || "Media"} · {gal.date || "2026"}</div>
+                <h3 className="featured-card-title">
+                  <Link to="/gallery">{gal.title}</Link>
+                </h3>
+
+                <div className="featured-card-stack">{gal.category || "Visual"} Media &amp; Architecture Showcase</div>
+
+                <p className="featured-card-desc">
+                  {item.tagline || gal.caption || "High-resolution architectural and interface verification capture."}
+                </p>
+
+                <div className="featured-card-actions">
+                  <Button to="/gallery" variant="outline" size="sm">
+                    View Gallery →
+                  </Button>
+                </div>
+              </article>
+            );
+          }
+
+          // ── Case 4: ACHIEVEMENT ──────────────────────────────────
           if (item.type === "achievement") {
-            const ach = achievements.find(
+            const ach = (achievements || []).find(
               (a) =>
-                a.id === item.contentId ||
-                a.slug === item.contentId ||
-                (a.title && a.title.toLowerCase().includes((item.contentId || "").toLowerCase()))
+                a &&
+                (a.id === item.contentId ||
+                  a.slug === item.contentId ||
+                  (a.title && a.title.toLowerCase().includes((item.contentId || "").toLowerCase())))
             );
 
             if (!ach) return null;
@@ -372,7 +487,13 @@ export default function FeaturedSection({ heading, description }) {
                 {/* Visual Thumbnail: Image or Designed Achievement Panel */}
                 <div className="showcase-thumb-panel" style={{ marginBottom: "14px" }}>
                   {ach.image ? (
-                    <img src={ach.image} alt={ach.title} className="showcase-thumb-img" />
+                    <img
+                      src={ach.image}
+                      alt={ach.title}
+                      loading="lazy"
+                      decoding="async"
+                      className="showcase-thumb-img"
+                    />
                   ) : (
                     <div className="achievement-preview-panel">
                       <div className="achievement-preview-top">
@@ -451,8 +572,6 @@ export default function FeaturedSection({ heading, description }) {
                   </div>
                 )}
 
-                <div style={{ height: "1px", background: "var(--border-subtle)", margin: "auto 0 16px", width: "100%" }} />
-
                 <div className="featured-card-actions">
                   <Button to="/achievements" variant="outline" size="sm">
                     View Achievement →
@@ -464,10 +583,11 @@ export default function FeaturedSection({ heading, description }) {
 
           // ── Case 4: EXPERIENCE ───────────────────────────────────
           if (item.type === "experience") {
-            const exp = experience.find(
+            const exp = (experience || []).find(
               (e) =>
-                e.id === item.contentId ||
-                (e.company && e.company.toLowerCase().includes((item.contentId || "").toLowerCase()))
+                e &&
+                (e.id === item.contentId ||
+                  (e.company && e.company.toLowerCase().includes((item.contentId || "").toLowerCase())))
             );
 
             if (!exp) return null;
@@ -546,8 +666,6 @@ export default function FeaturedSection({ heading, description }) {
                     ))}
                   </div>
                 )}
-
-                <div style={{ height: "1px", background: "var(--border-subtle)", margin: "auto 0 16px", width: "100%" }} />
 
                 <div className="featured-card-actions">
                   <Button to="/experience" variant="outline" size="sm">

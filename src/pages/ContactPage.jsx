@@ -5,6 +5,7 @@ import PageHeader from "../components/PageHeader";
 import ContactCard from "../components/ContactCard";
 import Button from "../components/Button";
 import SEO from "../components/SEO";
+import NextPageNavigation from "../components/NextPageNavigation";
 
 export default function ContactPage() {
   const { profile } = usePortfolioData();
@@ -282,6 +283,15 @@ export default function ContactPage() {
           </Button>
         </div>
       </section>
+
+      <NextPageNavigation
+        prev={{ label: "Visual Gallery", to: "/gallery" }}
+        next={{
+          label: "Developer Resume",
+          to: "/resume",
+          description: "Review comprehensive curriculum vitae and download the official PDF."
+        }}
+      />
     </>
   );
 }

@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import BackToTop from "../components/BackToTop";
 import AIAssistant from "../components/AIAssistant";
+import ErrorBoundary from "../components/ErrorBoundary";
 import { scrollToTarget } from "../utils/scrollUtils";
 import { usePortfolioMode } from "../context/ModeContext";
 
@@ -30,7 +31,9 @@ export default function RootLayout() {
     <div className={`app-layout ${isRecruiter ? "recruiter-mode-active" : ""}`}>
       <Navbar />
       <main className="main-content" id="mainContent">
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </main>
       <BackToTop />
       <AIAssistant />

@@ -2,8 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { usePortfolioData } from "../context/PortfolioDataContext";
 import { resolveHomeContent } from "../utils/contentDefaults";
-import ProjectThumbnail from "./ProjectThumbnail";
 import FeaturedSection from "./FeaturedSection";
+import NextPageNavigation from "./NextPageNavigation";
 import Button from "./Button";
 import SEO from "./SEO";
 
@@ -11,28 +11,19 @@ export default function NormalHomeView() {
   const {
     profile: profileData,
     settings: siteSettings,
-    featuredProjects = [],
-    experience: experienceData = [],
-    education: educationData = [],
-    skills: skillsData = [],
-    achievements: achievementsData = [],
-    certifications: certificationsData = [],
-    gallery: galleryData = []
+    skills: skillsData = []
   } = usePortfolioData();
 
   if (!profileData) return null;
 
   const homeContent = resolveHomeContent(profileData, siteSettings);
 
-  const currentExp = experienceData.find((e) => e.current) || experienceData[0] || {};
-  const mcaEducation = educationData.find((e) => e.current) || educationData[0] || {};
-  const bcaEducation = educationData.find((e) => !e.current && e.id === "bca-degree") || educationData[1] || {};
-
   const fullName = (profileData.name || "Ayyaj Kalandar Shaikh").trim();
   const nameParts = fullName.split(" ");
   const firstName = nameParts[0]?.toUpperCase() || "AYYAJ";
   const lastName = nameParts.slice(1).join(" ")?.toUpperCase() || "KALANDAR SHAIKH";
 
+  // Helper to extract top skills by category from live CMS data or sensible fallbacks
   const getCategorySkills = (catMatch, fallback) => {
     const group = skillsData.find((g) => g.category?.toUpperCase().includes(catMatch.toUpperCase()));
     if (!group || !Array.isArray(group.skills) || group.skills.length === 0) return fallback;
@@ -40,31 +31,126 @@ export default function NormalHomeView() {
     return names.length > 0 ? names.slice(0, 6) : fallback;
   };
 
-  const highlightedSkills = {
-    backend: getCategorySkills("BACKEND", ["Java", "Spring Boot", "REST APIs", "Hibernate / JPA", "ASP.NET Core"]),
-    frontend: getCategorySkills("FRONTEND", ["React.js", "JavaScript (ES6+)", "HTML5 / CSS3", "Bootstrap"]),
-    database: getCategorySkills("DATABASE", ["MySQL", "SQL Server", "MongoDB", "Database Design"]),
-    cloud: getCategorySkills("CLOUD", ["Cloud Computing", "AWS Fundamentals", "Layered Architecture"]),
-    tools: getCategorySkills("TOOL", ["Git", "GitHub", "Postman", "Maven", "VS Code"])
+  const techSnapshot = {
+    languages: getCategorySkills("LANGUAGE", ["Java", "JavaScript (ES6+)", "Python", "C++", "Node.js"]),
+    frontend: getCategorySkills("FRONTEND", ["React.js", "Vite", "TailwindCSS", "HTML5 / CSS3", "Responsive UI"]),
+    backendCloud: [
+      ...getCategorySkills("BACKEND", ["Spring Boot", "Express.js", "REST APIs"]).slice(0, 3),
+      ...getCategorySkills("CLOUD", ["Azure DevOps", "Docker", "Supabase"]).slice(0, 3)
+    ],
+    databasesTools: [
+      ...getCategorySkills("DATABASE", ["PostgreSQL", "MongoDB", "MySQL"]).slice(0, 3),
+      ...getCategorySkills("TOOL", ["Git / GitHub", "Postman", "Linux"]).slice(0, 3)
+    ]
   };
+
+  // 4 Core Capabilities
+  const capabilities = [
+    {
+      id: "fullstack",
+      icon: "⚡",
+      title: "Full-Stack Web Applications",
+      desc: "Architecting responsive, accessible, component-driven client applications with React.js and modern JavaScript, seamlessly integrated with performant backend services.",
+      tags: ["React.js", "Vite", "TailwindCSS", "REST APIs", "Modern UI/UX"]
+    },
+    {
+      id: "backend",
+      icon: "⚙️",
+      title: "Backend & API Architecture",
+      desc: "Designing resilient server-side services, microservices, business logic, secure authentication (JWT), and strongly-typed RESTful endpoints with clean separation of concerns.",
+      tags: ["Node.js", "Express", "Java", "Spring Boot", "REST APIs"]
+    },
+    {
+      id: "cloud",
+      icon: "☁️",
+      title: "Cloud & DevOps Automation",
+      desc: "Managing cloud-native workloads on Azure, containerizing microservices with Docker, and configuring automated CI/CD pipelines with GitHub Actions for reliable delivery.",
+      tags: ["Azure DevOps", "Docker", "CI/CD", "GitHub Actions", "Cloud Computing"]
+    },
+    {
+      id: "database",
+      icon: "🗄️",
+      title: "Database & System Design",
+      desc: "Structuring normalized relational databases and high-performance document stores with explicit schema constraints, foreign keys, transaction boundaries, and query tuning.",
+      tags: ["PostgreSQL", "Supabase", "MySQL", "MongoDB", "Data Modeling"]
+    }
+  ];
+
+  // 9 Guided Portfolio Destinations
+  const exploreCards = [
+    {
+      to: "/about",
+      icon: "👤",
+      title: "About Me",
+      desc: "Engineering philosophy, background, and academic trajectory."
+    },
+    {
+      to: "/skills",
+      icon: "🛠️",
+      title: "Technical Skills",
+      desc: "Comprehensive competency matrix, frameworks, and proficiencies."
+    },
+    {
+      to: "/experience",
+      icon: "💼",
+      title: "Work Experience",
+      desc: "Chronological industry internships and hands-on contributions."
+    },
+    {
+      to: "/projects",
+      icon: "📁",
+      title: "Projects Catalog",
+      desc: "Complete portfolio of web platforms, architectures, and repositories."
+    },
+    {
+      to: "/education",
+      icon: "🎓",
+      title: "Academic Education",
+      desc: "MCA in Cloud Computing and computer science foundations."
+    },
+    {
+      to: "/achievements",
+      icon: "🏆",
+      title: "Achievements",
+      desc: "Recognized honors, milestones, and competitive programming."
+    },
+    {
+      to: "/certifications",
+      icon: "📜",
+      title: "Certifications",
+      desc: "Verified technical credentials, cloud licenses, and training."
+    },
+    {
+      to: "/gallery",
+      icon: "🖼️",
+      title: "Visual Gallery",
+      desc: "System diagrams, database schemas, and interface captures."
+    },
+    {
+      to: "/contact",
+      icon: "✉️",
+      title: "Get in Touch",
+      desc: "Direct messaging, email, phone, and professional inquiries."
+    }
+  ];
 
   return (
     <div className="home-container" aria-label="Personal Developer Platform — Home">
       <SEO
         title="Home"
-        description={`${fullName} — Software Developer & Full Stack Engineer specializing in Java, Spring Boot, React.js, and Cloud Computing (MCA).`}
+        description={`${fullName} — Software Developer & Full Stack Engineer specializing in React.js, Node.js, Java, and Cloud Computing (MCA).`}
       />
 
       {/* ============================================================
-          SECTION 1: HERO SECTION (#home)
+          SECTION 1: HERO / IDENTITY (#home)
           ============================================================ */}
       <section className="hero-section" id="home" aria-label="Developer Introduction">
         <div className="hero-grid">
-          {/* Hero Left: Narrative & Typography */}
+          {/* Hero Left: Narrative & Identity */}
           <div className="hero-identity-col">
             <div className="hero-status-pill">
               <span className="status-live-indicator" aria-hidden="true" />
-              <span>{profileData.currentRole}</span>
+              <span>{profileData.currentRole || "Open for Software Engineering Roles"}</span>
             </div>
 
             <h1 className="hero-title">
@@ -89,22 +175,14 @@ export default function NormalHomeView() {
 
             <p className="hero-positioning">{profileData.bio}</p>
 
-            {/* Action Group */}
+            {/* Quick CTAs */}
             <div className="hero-actions-block">
               <div className="hero-primary-btns">
-                <Button
-                  to="/projects"
-                  variant="primary"
-                  size="lg"
-                >
+                <Button to="/projects" variant="primary" size="lg">
                   View Projects →
                 </Button>
-                <Button
-                  to="/contact"
-                  variant="secondary"
-                  size="lg"
-                >
-                  Contact Me
+                <Button to="/about" variant="secondary" size="lg">
+                  About Me
                 </Button>
               </div>
 
@@ -112,24 +190,31 @@ export default function NormalHomeView() {
                 <Button to="/resume" variant="outline" size="sm">
                   Resume
                 </Button>
-                <Button
-                  href={profileData.contact?.github}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="outline"
-                  size="sm"
-                >
-                  GitHub ↗
+                <Button to="/contact" variant="outline" size="sm">
+                  Contact Me
                 </Button>
-                <Button
-                  href={profileData.contact?.linkedin}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  variant="outline"
-                  size="sm"
-                >
-                  LinkedIn ↗
-                </Button>
+                {profileData.contact?.github && (
+                  <Button
+                    href={profileData.contact.github}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="outline"
+                    size="sm"
+                  >
+                    GitHub ↗
+                  </Button>
+                )}
+                {profileData.contact?.linkedin && (
+                  <Button
+                    href={profileData.contact.linkedin}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="outline"
+                    size="sm"
+                  >
+                    LinkedIn ↗
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -140,7 +225,7 @@ export default function NormalHomeView() {
             </div>
           </div>
 
-          {/* Hero Right: Professional Photo Frame */}
+          {/* Hero Right: Profile Photo Frame */}
           <div className="hero-visual-col">
             <div className="hero-frame">
               <img
@@ -166,37 +251,7 @@ export default function NormalHomeView() {
       </section>
 
       {/* ============================================================
-          SECTION 2: PERSONAL DEVELOPER SNAPSHOT (COMPACT) (#about)
-          ============================================================ */}
-      <section className="compact-snapshot-strip" id="about" aria-label="Personal Developer Snapshot">
-        <div className="snapshot-cell">
-          <span className="snapshot-cell-label">CURRENT ROLE</span>
-          <span className="snapshot-cell-val">{profileData.snapshot?.currentPosition || profileData.currentRole}</span>
-        </div>
-        <div className="snapshot-cell">
-          <span className="snapshot-cell-label">PRIMARY FOCUS</span>
-          <span className="snapshot-cell-val">{profileData.snapshot?.primaryFocus || "Java Backend & Cloud Computing"}</span>
-        </div>
-        <div className="snapshot-cell">
-          <span className="snapshot-cell-label">BACKEND</span>
-          <span className="snapshot-cell-val">{profileData.snapshot?.backend || "Java / Spring Boot"}</span>
-        </div>
-        <div className="snapshot-cell">
-          <span className="snapshot-cell-label">FRONTEND</span>
-          <span className="snapshot-cell-val">{profileData.snapshot?.frontend || "React.js"}</span>
-        </div>
-        <div className="snapshot-cell">
-          <span className="snapshot-cell-label">CLOUD</span>
-          <span className="snapshot-cell-val">{profileData.snapshot?.cloud || "AWS Fundamentals"}</span>
-        </div>
-        <div className="snapshot-cell">
-          <span className="snapshot-cell-label">LOCATION</span>
-          <span className="snapshot-cell-val">{profileData.location}</span>
-        </div>
-      </section>
-
-      {/* ============================================================
-          SECTION 3: FEATURED SHOWCASE (#projects)
+          SECTION 2: SELECTED WORK (FEATURED SHOWCASE CMS) (#projects)
           ============================================================ */}
       <FeaturedSection
         heading={homeContent.featuredHeading}
@@ -204,72 +259,47 @@ export default function NormalHomeView() {
       />
 
       {/* ============================================================
-          SECTION 4: CAREER SNAPSHOT (#experience)
+          SECTION 3: WHAT I DO / CORE CAPABILITIES (#capabilities)
           ============================================================ */}
-      <section className="home-section" id="experience" aria-label="Career Snapshot">
+      <section className="home-section" id="capabilities" aria-label="Core Capabilities">
         <div className="home-section-header">
           <div>
-            <span className="section-micro-label">EXPERIENCE OVERVIEW</span>
-            <h2 className="home-section-title">{homeContent.experienceHeading}</h2>
+            <span className="section-micro-label">ENGINEERING PROFILE</span>
+            <h2 className="home-section-title">What I Do</h2>
             <p className="home-section-desc">
-              {homeContent.experienceDesc}
+              Specialized engineering focus across modern web architectures, resilient backend services, and scalable cloud deployments.
             </p>
           </div>
-          <Button to="/experience" variant="outline" size="sm">
-            View Full Experience →
-          </Button>
         </div>
 
-        <div className="career-cards-grid">
-          {/* Current Role Highlight */}
-          <div className="career-card is-active-career">
-            <div className="career-tag-current">● CURRENT ROLE</div>
-            <h3 className="career-role">{currentExp.role}</h3>
-            <div className="career-org">{currentExp.company}</div>
-            <div className="career-meta">
-              {currentExp.startDate} – {currentExp.endDate} · {currentExp.location} ({currentExp.employmentType})
-            </div>
-            <p className="career-desc">{currentExp.description}</p>
-            <div className="career-tech-row">
-              {(currentExp.technologies || []).map((t) => (
-                <span key={t} className="micro-tag">
-                  {t}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Previous Roles Summary */}
-          <div className="career-card">
-            <div className="career-tag-previous">PREVIOUS INTERNSHIPS</div>
-            <div className="prev-roles-list">
-              {experienceData
-                .filter((e) => !e.current)
-                .map((role) => (
-                  <div key={role.id} className="prev-role-item">
-                    <div className="prev-role-title">{role.role}</div>
-                    <div className="prev-role-company">{role.company}</div>
-                    <div className="prev-role-date">
-                      {role.startDate} – {role.endDate} · {role.location}
-                    </div>
-                    <p className="prev-role-desc">{role.description}</p>
-                  </div>
+        <div className="capabilities-grid">
+          {capabilities.map((item) => (
+            <div key={item.id} className="capability-card">
+              <div className="capability-card-header">
+                <span className="capability-icon" aria-hidden="true">{item.icon}</span>
+                <h3 className="capability-title">{item.title}</h3>
+              </div>
+              <p className="capability-desc">{item.desc}</p>
+              <div className="capability-tags">
+                {item.tags.map((tag) => (
+                  <span key={tag} className="micro-tag">{tag}</span>
                 ))}
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </section>
 
       {/* ============================================================
-          SECTION 5: SKILLS PREVIEW (CONDENSED & SELECTED) (#skills)
+          SECTION 4: TECHNOLOGY SNAPSHOT (#tech-stack)
           ============================================================ */}
-      <section className="home-section" id="skills" aria-label="Core Skills Preview">
+      <section className="home-section" id="tech-stack" aria-label="Technology Snapshot">
         <div className="home-section-header">
           <div>
             <span className="section-micro-label">TECHNICAL COMPETENCY</span>
-            <h2 className="home-section-title">{homeContent.skillsHeading}</h2>
+            <h2 className="home-section-title">Technology Snapshot</h2>
             <p className="home-section-desc">
-              {homeContent.skillsDesc}
+              A curated snapshot of languages, frameworks, databases, and DevOps tools I work with daily.
             </p>
           </div>
           <Button to="/skills" variant="outline" size="sm">
@@ -277,230 +307,76 @@ export default function NormalHomeView() {
           </Button>
         </div>
 
-        <div className="condensed-skills-grid">
-          <div className="condensed-skill-col">
-            <h3 className="condensed-cat-header">Backend</h3>
-            <div className="condensed-chips">
-              {highlightedSkills.backend.map((s) => (
-                <span key={s} className="skill-chip core-item">
-                  {s}
-                </span>
+        <div className="tech-snapshot-grid">
+          <div className="tech-snapshot-card">
+            <h3 className="tech-snapshot-category">Languages &amp; Runtimes</h3>
+            <div className="tech-snapshot-pills">
+              {techSnapshot.languages.map((skill) => (
+                <span key={skill} className="skill-chip core-item">{skill}</span>
               ))}
             </div>
           </div>
 
-          <div className="condensed-skill-col">
-            <h3 className="condensed-cat-header">Frontend</h3>
-            <div className="condensed-chips">
-              {highlightedSkills.frontend.map((s) => (
-                <span key={s} className="skill-chip">
-                  {s}
-                </span>
+          <div className="tech-snapshot-card">
+            <h3 className="tech-snapshot-category">Frontend Architecture</h3>
+            <div className="tech-snapshot-pills">
+              {techSnapshot.frontend.map((skill) => (
+                <span key={skill} className="skill-chip">{skill}</span>
               ))}
             </div>
           </div>
 
-          <div className="condensed-skill-col">
-            <h3 className="condensed-cat-header">Databases</h3>
-            <div className="condensed-chips">
-              {highlightedSkills.database.map((s) => (
-                <span key={s} className="skill-chip">
-                  {s}
-                </span>
+          <div className="tech-snapshot-card">
+            <h3 className="tech-snapshot-category">Backend &amp; Cloud</h3>
+            <div className="tech-snapshot-pills">
+              {techSnapshot.backendCloud.map((skill) => (
+                <span key={skill} className="skill-chip">{skill}</span>
               ))}
             </div>
           </div>
 
-          <div className="condensed-skill-col">
-            <h3 className="condensed-cat-header">Cloud &amp; Tools</h3>
-            <div className="condensed-chips">
-              {[...highlightedSkills.cloud, ...highlightedSkills.tools.slice(0, 3)].map((s) => (
-                <span key={s} className="skill-chip">
-                  {s}
-                </span>
+          <div className="tech-snapshot-card">
+            <h3 className="tech-snapshot-category">Databases &amp; Tooling</h3>
+            <div className="tech-snapshot-pills">
+              {techSnapshot.databasesTools.map((skill) => (
+                <span key={skill} className="skill-chip">{skill}</span>
               ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* ============================================================
-          SECTION 6: EDUCATION SNAPSHOT (#education)
-          ============================================================ */}
-      <section className="home-section" id="education" aria-label="Academic Education">
-        <div className="home-section-header">
-          <div>
-            <span className="section-micro-label">ACADEMIC FOUNDATION</span>
-            <h2 className="home-section-title">{homeContent.educationHeading}</h2>
-            <p className="home-section-desc">
-              {homeContent.educationDesc}
-            </p>
-          </div>
-          <Button to="/education" variant="outline" size="sm">
-            View Education →
-          </Button>
-        </div>
-
-        <div className="education-duo-grid">
-          {/* Current MCA */}
-          <div className="edu-card is-active-edu">
-            <div className="edu-badge-current">● CURRENT POSTGRADUATE STUDIES</div>
-            <h3 className="edu-degree">{mcaEducation.degree}</h3>
-            <div className="edu-spec">Specialization: {mcaEducation.specialization}</div>
-            <div className="edu-school">{mcaEducation.institution}</div>
-            <div className="edu-meta">
-              {mcaEducation.location} · {mcaEducation.year} ({mcaEducation.status})
-            </div>
-            <p className="edu-desc">{mcaEducation.description}</p>
-          </div>
-
-          {/* Completed BCA */}
-          <div className="edu-card">
-            <div className="edu-badge-completed">COMPLETED UNDERGRADUATE</div>
-            <h3 className="edu-degree">{bcaEducation.degree}</h3>
-            <div className="edu-spec">{bcaEducation.specialization}</div>
-            <div className="edu-school">{bcaEducation.institution}</div>
-            <div className="edu-meta">
-              {bcaEducation.location} · {bcaEducation.year} ({bcaEducation.status})
-            </div>
-            <p className="edu-desc">{bcaEducation.description}</p>
-          </div>
-        </div>
-      </section>
 
       {/* ============================================================
-          SECTION 7: ACHIEVEMENTS & CREDENTIALS PREVIEW (#achievements)
+          SECTION 5: QUICK PORTFOLIO NAVIGATION (#explore)
           ============================================================ */}
-      <section className="home-section" id="achievements" aria-label="Achievements & Milestones">
+      <section className="home-section" id="explore" aria-label="Explore My Portfolio">
         <div className="home-section-header">
           <div>
-            <span className="section-micro-label">VERIFIED RECORD</span>
-            <h2 className="home-section-title">{homeContent.achievementsHeading}</h2>
+            <span className="section-micro-label">PORTFOLIO DIRECTORY</span>
+            <h2 className="home-section-title">Explore My Portfolio</h2>
             <p className="home-section-desc">
-              {homeContent.achievementsDesc}
+              Jump directly to detailed sections covering my engineering work, verified credentials, and professional background.
             </p>
           </div>
-          <Button to="/achievements" variant="outline" size="sm">
-            View Achievements →
-          </Button>
         </div>
 
-        <div className="achievements-preview-grid">
-          {achievementsData.slice(0, 3).map((item) => (
-            <div key={item.id} className="card achievement-preview-box">
-              <span className="achievement-micro-tag">{item.type}</span>
-              <h3 className="achievement-preview-title">
-                <Link to={`/achievements/${item.slug}`}>{item.title}</Link>
-              </h3>
-              <div className="achievement-preview-org">{item.organization}</div>
-              <p className="achievement-preview-desc">{item.description}</p>
-              <div style={{ marginTop: "auto", paddingTop: "8px" }}>
-                <Link to={`/achievements/${item.slug}`} className="section-link-sm">
-                  View Milestone Details →
-                </Link>
+        <div className="explore-nav-grid">
+          {exploreCards.map((dest) => (
+            <Link key={dest.to} to={dest.to} className="explore-nav-card" aria-label={`Navigate to ${dest.title}`}>
+              <div className="explore-nav-top">
+                <span className="explore-nav-icon" aria-hidden="true">{dest.icon}</span>
+                <span className="explore-nav-arrow" aria-hidden="true">→</span>
               </div>
-            </div>
+              <h3 className="explore-nav-title">{dest.title}</h3>
+              <p className="explore-nav-desc">{dest.desc}</p>
+            </Link>
           ))}
         </div>
       </section>
 
       {/* ============================================================
-          SECTION 8: CERTIFICATIONS & TRAINING PREVIEW (#certifications)
-          ============================================================ */}
-      <section className="home-section" id="certifications" aria-label="Certifications & Training">
-        <div className="home-section-header">
-          <div>
-            <span className="section-micro-label">CREDENTIALS & LICENSES</span>
-            <h2 className="home-section-title">{homeContent.certificationsHeading}</h2>
-            <p className="home-section-desc">
-              {homeContent.certificationsDesc}
-            </p>
-          </div>
-          <Button to="/certifications" variant="outline" size="sm">
-            All Certifications →
-          </Button>
-        </div>
-
-        <div className="achievements-preview-grid">
-          {certificationsData.slice(0, 3).map((cert) => (
-            <div key={cert.id} className="card achievement-preview-box">
-              <span className="achievement-micro-tag">{cert.issuer}</span>
-              <h3 className="achievement-preview-title">{cert.name || cert.title}</h3>
-              <div className="achievement-preview-org">{cert.date}</div>
-              <p className="achievement-preview-desc">{cert.description}</p>
-              {cert.credentialUrl && (
-                <div style={{ marginTop: "auto", paddingTop: "8px" }}>
-                  <a href={cert.credentialUrl} target="_blank" rel="noopener noreferrer" className="section-link-sm">
-                    Verify Credential ↗
-                  </a>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ============================================================
-          SECTION 9: INTERFACE & DEV GALLERY PREVIEW (#gallery)
-          ============================================================ */}
-      <section className="home-section" id="gallery" aria-label="Development & Interface Gallery">
-        <div className="home-section-header">
-          <div>
-            <span className="section-micro-label">VISUAL ARCHIVE</span>
-            <h2 className="home-section-title">{homeContent.galleryHeading}</h2>
-            <p className="home-section-desc">
-              {homeContent.galleryDesc}
-            </p>
-          </div>
-          <Button to="/gallery" variant="outline" size="sm">
-            Open Visual Gallery →
-          </Button>
-        </div>
-
-        <div className="achievements-preview-grid">
-          {galleryData.slice(0, 3).map((item) => (
-            <div key={item.id} className="card achievement-preview-box">
-              <span className="achievement-micro-tag">{item.category}</span>
-              <h3 className="achievement-preview-title">{item.title}</h3>
-              <p className="achievement-preview-desc">{item.description}</p>
-              <div style={{ marginTop: "auto", paddingTop: "8px" }}>
-                <Link to="/gallery" className="section-link-sm">
-                  View in Gallery →
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ============================================================
-          SECTION 10: PERSONAL SECTION — HOW I BUILD / BEYOND THE CODE (#principles)
-          ============================================================ */}
-      <section className="home-section" id="principles" aria-label="How I Build — Engineering Principles">
-        <div className="home-section-header">
-          <div>
-            <span className="section-micro-label">ENGINEERING PHILOSOPHY</span>
-            <h2 className="home-section-title">{homeContent.principlesHeading}</h2>
-            <p className="home-section-desc">
-              {homeContent.principlesDesc}
-            </p>
-          </div>
-        </div>
-
-        <div className="principles-grid">
-          {homeContent.principles.map((p, idx) => (
-            <div key={p.title || idx} className="card principle-card">
-              <span className="principle-num">0{idx + 1}</span>
-              <h3 className="principle-title">{p.title}</h3>
-              <div className="principle-sub">{p.subtitle}</div>
-              <p className="principle-desc">{p.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ============================================================
-          SECTION 11: CONTACT CTA (#contact)
+          SECTION 6: FINAL CALL TO ACTION (#contact)
           ============================================================ */}
       <section className="home-cta-section" id="contact" aria-label="Call to Action">
         <div className="cta-inner-box">
@@ -512,14 +388,28 @@ export default function NormalHomeView() {
 
           <div className="cta-action-buttons">
             <Button to="/contact" variant="primary" size="lg">
-              {homeContent.contactCtaButtonText}
+              Contact Me
             </Button>
-            <Button href={`mailto:${profileData.contact?.email}`} variant="outline" size="lg">
-              {homeContent.contactEmailButtonText}
+            <Button to="/projects" variant="secondary" size="lg">
+              View Projects
+            </Button>
+            <Button to="/resume" variant="outline" size="lg">
+              Download Resume
             </Button>
           </div>
         </div>
       </section>
+
+      {/* ============================================================
+          SECTION 7: NEXT PAGE NAVIGATION
+          ============================================================ */}
+      <NextPageNavigation
+        next={{
+          label: "About Me",
+          to: "/about",
+          description: "Explore my background, architectural tenets, and educational journey."
+        }}
+      />
     </div>
   );
 }

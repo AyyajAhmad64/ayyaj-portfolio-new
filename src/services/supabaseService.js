@@ -811,6 +811,21 @@ export async function fetchSiteSettingsFromDb() {
 
     if (error) throw error;
     if (!data) return null;
+
+    let featured = undefined;
+    try {
+      const { data: profData } = await supabase
+        .from("profiles")
+        .select("snapshot")
+        .limit(1)
+        .maybeSingle();
+      if (Array.isArray(profData?.snapshot?.home?.featuredItems)) {
+        featured = profData.snapshot.home.featuredItems;
+      }
+    } catch (profErr) {
+      console.warn("Supabase: Error reading profile fallback for featured_items:", profErr);
+    }
+
     return {
       siteTitle: data.site_title,
       enableRecruiterMode: data.enable_recruiter_mode,
@@ -819,7 +834,7 @@ export async function fetchSiteSettingsFromDb() {
       secondaryAccent: data.secondary_accent,
       publicLocation: data.public_location,
       showAvailabilityBadge: data.show_availability_badge,
-      featuredItems: Array.isArray(data.featured_items) ? data.featured_items : []
+      featuredItems: Array.isArray(featured) ? featured : undefined
     };
   } catch (err) {
     console.error("Supabase: Error fetching site settings:", err);
@@ -842,44 +857,54 @@ export async function updateSiteSettingsInDb(updates, actorEmail = "admin") {
       show_availability_badge: updates.showAvailabilityBadge,
       updated_at: new Date().toISOString()
     };
-    if (updates.featuredItems !== undefined) {
-      payload.featured_items = updates.featuredItems;
-    }
-    let { data, error } = await supabase
+    // Strip undefined keys
+    Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+
+    const { data, error } = await supabase
       .from("site_settings")
       .update(payload)
       .eq("id", "00000000-0000-0000-0000-000000000001")
       .select()
       .single();
 
-    let featuredItemsPendingMigration = false;
-    if (error && error.message && error.message.includes("featured_items")) {
-      console.warn("Supabase: 'featured_items' column missing in 'site_settings' schema. Retrying update without it. Run migration 20260917000000_featured_and_gallery_sort.sql in Supabase Dashboard SQL editor.");
-      delete payload.featured_items;
-      featuredItemsPendingMigration = true;
-      const retryResult = await supabase
-        .from("site_settings")
-        .update(payload)
-        .eq("id", "00000000-0000-0000-0000-000000000001")
-        .select()
-        .single();
-      if (retryResult.error) throw retryResult.error;
-      data = retryResult.data;
-    } else if (error) {
-      throw error;
+    if (error) throw error;
+
+    // Always persist featuredItems in profiles.snapshot.home.featuredItems (canonical cloud storage for home settings)
+    if (updates.featuredItems !== undefined) {
+      try {
+        const { data: profRow } = await supabase
+          .from("profiles")
+          .select("snapshot")
+          .eq("id", "00000000-0000-0000-0000-000000000001")
+          .single();
+        const currentSnapshot = profRow?.snapshot || {};
+        const currentHome = currentSnapshot.home || {};
+        const nextSnapshot = {
+          ...currentSnapshot,
+          home: {
+            ...currentHome,
+            featuredItems: updates.featuredItems
+          }
+        };
+        await supabase
+          .from("profiles")
+          .update({ snapshot: nextSnapshot, updated_at: new Date().toISOString() })
+          .eq("id", "00000000-0000-0000-0000-000000000001");
+      } catch (profErr) {
+        console.error("Supabase: Failed to persist featuredItems in profile snapshot fallback:", profErr);
+      }
     }
 
     await recordAuditLog("UPDATE", "site_settings", "primary", updates, actorEmail);
     return {
-      siteTitle: data.site_title,
-      enableRecruiterMode: data.enable_recruiter_mode,
-      enableContactForm: data.enable_contact_form,
-      primaryAccent: data.primary_accent,
-      secondaryAccent: data.secondary_accent,
-      publicLocation: data.public_location,
-      showAvailabilityBadge: data.show_availability_badge,
-      featuredItems: Array.isArray(data.featured_items) ? data.featured_items : (updates.featuredItems || []),
-      __featuredItemsPendingMigration: featuredItemsPendingMigration
+      siteTitle: data?.site_title,
+      enableRecruiterMode: data?.enable_recruiter_mode,
+      enableContactForm: data?.enable_contact_form,
+      primaryAccent: data?.primary_accent,
+      secondaryAccent: data?.secondary_accent,
+      publicLocation: data?.public_location,
+      showAvailabilityBadge: data?.show_availability_badge,
+      featuredItems: updates.featuredItems !== undefined ? updates.featuredItems : []
     };
   } catch (err) {
     console.error("Supabase: Error updating site settings:", err);
@@ -1191,7 +1216,10 @@ const ALLOWED_ANALYTICS_EVENTS = new Set([
   "recruiter_mode_visit",
   "contact_click",
   "github_click",
-  "linkedin_click"
+  "linkedin_click",
+  "live_demo_click",
+  "recruiter_filter_used",
+  "jarvis_query"
 ]);
 
 export async function logAnalyticsEvent(eventName, pagePath, metadata = {}) {
@@ -1478,25 +1506,26 @@ function mapProfileFromDb(row) {
 }
 
 function mapProfileToDb(p) {
-  return {
-    name: p.name,
-    short_name: p.shortName,
-    title: p.title,
-    headline: p.headline,
-    current_position: p.currentRole,
-    education_degree: p.educationDegree,
-    education_specialization: p.educationSpecialization,
-    education_institution: p.educationInstitution,
-    location: p.location || "Hinjawadi, Pune, Maharashtra, India",
-    availability: p.availability,
-    status: p.status,
-    bio: p.bio,
-    about_detailed: p.aboutDetailed,
-    snapshot: p.snapshot,
-    contact: p.contact,
-    primary_skills: p.primarySkills,
+  const payload = {
     updated_at: new Date().toISOString()
   };
+  if (p.name !== undefined) payload.name = p.name;
+  if (p.shortName !== undefined) payload.short_name = p.shortName;
+  if (p.title !== undefined) payload.title = p.title;
+  if (p.headline !== undefined) payload.headline = p.headline;
+  if (p.currentRole !== undefined) payload.current_position = p.currentRole;
+  if (p.educationDegree !== undefined) payload.education_degree = p.educationDegree;
+  if (p.educationSpecialization !== undefined) payload.education_specialization = p.educationSpecialization;
+  if (p.educationInstitution !== undefined) payload.education_institution = p.educationInstitution;
+  if (p.location !== undefined) payload.location = p.location;
+  if (p.availability !== undefined) payload.availability = p.availability;
+  if (p.status !== undefined) payload.status = p.status;
+  if (p.bio !== undefined) payload.bio = p.bio;
+  if (p.aboutDetailed !== undefined) payload.about_detailed = p.aboutDetailed;
+  if (p.snapshot !== undefined) payload.snapshot = p.snapshot;
+  if (p.contact !== undefined) payload.contact = p.contact;
+  if (p.primarySkills !== undefined) payload.primary_skills = p.primarySkills;
+  return payload;
 }
 
 function groupSkillsByCategory(skillRows) {

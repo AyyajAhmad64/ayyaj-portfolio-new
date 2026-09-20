@@ -3,6 +3,7 @@ import { usePortfolioData } from "../context/PortfolioDataContext";
 import PageHeader from "../components/PageHeader";
 import AchievementCard from "../components/AchievementCard";
 import SEO from "../components/SEO";
+import NextPageNavigation from "../components/NextPageNavigation";
 
 export default function AchievementsPage() {
   const { achievements } = usePortfolioData();
@@ -25,6 +26,15 @@ export default function AchievementsPage() {
           <AchievementCard key={item.id} achievement={item} />
         ))}
       </div>
+
+      <NextPageNavigation
+        prev={{ label: "Academic Education", to: "/education" }}
+        next={{
+          label: "Certifications",
+          to: "/certifications",
+          description: "Explore verified technical credentials, cloud licenses, and training programs."
+        }}
+      />
     </>
   );
 }

@@ -250,13 +250,13 @@ export default function AdminEducationPage() {
 
       <div style={{ display: "grid", gap: "16px" }}>
         {list.map((item) => (
-          <div key={item.id} className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap" }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <h3 style={{ fontSize: "16px", color: "var(--text-bright)", margin: 0 }}>{item.degree}</h3>
+          <div key={item.id} className="card admin-education-card admin-card">
+            <div className="admin-education-card-inner">
+              <div className="admin-education-content">
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-bright)", margin: 0, wordBreak: "break-word" }}>{item.degree}</h3>
                   {item.current && (
-                    <span style={{ fontSize: "10.5px", padding: "2px 6px", borderRadius: "4px", background: "var(--accent-cyan-soft)", color: "var(--accent-cyan)", fontWeight: "700" }}>
+                    <span className="admin-status-pill current-pill" style={{ fontSize: "10.5px", padding: "2px 6px", borderRadius: "4px", background: "var(--accent-cyan-soft)", color: "var(--accent-cyan)", fontWeight: "700", border: "1px solid var(--accent-cyan)", whiteSpace: "nowrap" }}>
                       CURRENT STUDIES
                     </span>
                   )}
@@ -269,19 +269,19 @@ export default function AdminEducationPage() {
                 <div style={{ fontSize: "12.5px", color: "var(--text-muted)", marginTop: "2px" }}>
                   {item.institution} · {item.location} ({item.year})
                 </div>
-                <p style={{ color: "var(--text-muted)", fontSize: "13px", marginTop: "8px", maxWidth: "68ch" }}>
+                <p style={{ color: "var(--text-muted)", fontSize: "13px", marginTop: "8px", maxWidth: "68ch", lineHeight: "1.5", wordBreak: "break-word" }}>
                   {item.description}
                 </p>
               </div>
 
-              <div style={{ display: "flex", gap: "8px" }}>
-                <Button onClick={() => handleEdit(item)} variant="outline" size="sm">
+              <div className="admin-card-actions">
+                <Button onClick={() => handleEdit(item)} variant="outline" size="sm" className="admin-action-btn">
                   Edit ✎
                 </Button>
                 <button
                   type="button"
                   onClick={() => handleDelete(item.id, item.degree)}
-                  className="btn btn-ghost btn-sm"
+                  className="btn btn-ghost btn-sm admin-action-btn admin-delete-btn"
                   style={{ color: "#f87171" }}
                 >
                   Delete ✕

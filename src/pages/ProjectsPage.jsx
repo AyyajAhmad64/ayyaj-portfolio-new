@@ -4,6 +4,7 @@ import PageHeader from "../components/PageHeader";
 import ProjectFilter from "../components/ProjectFilter";
 import ProjectCard from "../components/ProjectCard";
 import SEO from "../components/SEO";
+import NextPageNavigation from "../components/NextPageNavigation";
 
 export default function ProjectsPage() {
   const { projects } = usePortfolioData();
@@ -116,6 +117,15 @@ export default function ProjectsPage() {
           })}
         </div>
       )}
+
+      <NextPageNavigation
+        prev={{ label: "Work Experience", to: "/experience" }}
+        next={{
+          label: "Academic Education",
+          to: "/education",
+          description: "MCA in Cloud Computing and computer science academic foundation."
+        }}
+      />
     </>
   );
 }

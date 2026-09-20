@@ -1,39 +1,211 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { getProjects, saveProject, deleteProject, reorderProjects } from "../../services/dataService";
 import { uploadMediaFile } from "../../services/supabaseService";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import ProjectThumbnail from "../../components/ProjectThumbnail";
 import Button from "../../components/Button";
 import SEO from "../../components/SEO";
+import AdminBulkActionsBar from "../../components/AdminBulkActionsBar";
+import AdminContentPreviewModal from "../../components/AdminContentPreviewModal";
+import { generateUniqueSlug, generateUniqueTitle } from "../../utils/slugUtils";
 
 export default function AdminProjectsPage() {
   const [projects, setProjects] = useState([]);
+  const [savedOrderIds, setSavedOrderIds] = useState([]);
+  const [selectedProjectIds, setSelectedProjectIds] = useState([]);
   const [editingProject, setEditingProject] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [errorNotice, setErrorNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [draggedIdx, setDraggedIdx] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
 
-  const handleMove = async (index, direction) => {
+  const isOrderDirty = useMemo(() => {
+    if (!savedOrderIds.length || savedOrderIds.length !== projects.length) return false;
+    return projects.some((p, idx) => p.id !== savedOrderIds[idx]);
+  }, [projects, savedOrderIds]);
+
+  const getProjectCompleteness = (p) => {
+    let score = 0;
+    if (p.title) score += 15;
+    if (p.description && p.description.length > 20) score += 20;
+    if (p.stack) score += 10;
+    if (Array.isArray(p.category) && p.category.length > 0) score += 10;
+    if (Array.isArray(p.technologies) && p.technologies.length > 0) score += 15;
+    if (Array.isArray(p.features) && p.features.length > 0) score += 10;
+    if (p.liveDemo || p.github) score += 10;
+    if (p.thumbnail || (Array.isArray(p.images) && p.images.length > 0)) score += 10;
+    return Math.min(score, 100);
+  };
+
+  const handleDragStart = (e, index) => {
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e, targetIdx) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === targetIdx) return;
+    const reordered = [...projects];
+    const [movedItem] = reordered.splice(draggedIdx, 1);
+    reordered.splice(targetIdx, 0, movedItem);
+    reordered.forEach((p, idx) => {
+      p.sortOrder = idx + 1;
+    });
+    setProjects(reordered);
+    setDraggedIdx(null);
+  };
+
+  const handleMove = (index, direction) => {
     const targetIdx = index + direction;
     if (targetIdx < 0 || targetIdx >= projects.length) return;
     const reordered = [...projects];
     const temp = reordered[index];
     reordered[index] = reordered[targetIdx];
     reordered[targetIdx] = temp;
+    reordered.forEach((p, idx) => {
+      p.sortOrder = idx + 1;
+    });
     setProjects(reordered);
+  };
+
+  const handleSaveOrder = async () => {
     try {
-      await reorderProjects(reordered.map((p) => p.id));
+      setIsSaving(true);
+      setErrorNotice("");
+      const orderedIds = projects.map((p) => p.id);
+      await reorderProjects(orderedIds);
+      setSavedOrderIds(orderedIds);
+      setNotice("✓ Project order saved successfully to Supabase.");
+      setTimeout(() => setNotice(""), 3000);
     } catch (err) {
-      console.warn("Project reorder failed in cloud:", err);
+      console.error("Project reorder failed in cloud:", err);
+      setErrorNotice(err.message || "Failed to save project order.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleResetOrder = () => {
+    if (!savedOrderIds.length) return;
+    const map = new Map(projects.map((p) => [p.id, p]));
+    const restored = savedOrderIds.map((id) => map.get(id)).filter(Boolean);
+    restored.forEach((p, idx) => {
+      p.sortOrder = idx + 1;
+    });
+    setProjects(restored);
+    setNotice("Project order reset to last saved state.");
+    setTimeout(() => setNotice(""), 2000);
+  };
+
+  const handleDuplicate = (p) => {
+    const copyTitle = generateUniqueTitle(p.title, projects.map((x) => x.title));
+    const copySlug = generateUniqueSlug(p.slug || p.title, projects.map((x) => x.slug));
+    setEditingProject({
+      ...p,
+      id: undefined,
+      title: copyTitle,
+      slug: copySlug,
+      publicationStatus: "draft",
+      images: Array.isArray(p.images) ? [...p.images] : (p.thumbnail ? [p.thumbnail] : []),
+      categoryStr: Array.isArray(p.category) ? p.category.join(", ") : p.category || "",
+      techStr: Array.isArray(p.technologies) ? p.technologies.join(", ") : "",
+      featuresStr: Array.isArray(p.features) ? p.features.join("\n") : ""
+    });
+    setIsCreating(true);
+    setNotice(`Duplicated "${p.title}" as new draft project. Review and save.`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedProjectIds(projects.map((p) => p.id));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedProjectIds([]);
+  };
+
+  const toggleSelectProject = (id) => {
+    setSelectedProjectIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkPublish = async (ids) => {
+    setIsSaving(true);
+    setErrorNotice("");
+    try {
+      for (const id of ids) {
+        const p = projects.find((x) => x.id === id);
+        if (p) {
+          await saveProject({ ...p, publicationStatus: "published" });
+        }
+      }
+      await loadProjects();
+      setSelectedProjectIds([]);
+      setNotice(`✓ Successfully published ${ids.length} projects.`);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      setErrorNotice("Bulk publish failed: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+
+  const handleBulkDraft = async (ids) => {
+    setIsSaving(true);
+    setErrorNotice("");
+    try {
+      for (const id of ids) {
+        const p = projects.find((x) => x.id === id);
+        if (p) {
+          await saveProject({ ...p, publicationStatus: "draft" });
+        }
+      }
+      await loadProjects();
+      setSelectedProjectIds([]);
+      setNotice(`✓ Successfully set ${ids.length} projects to draft.`);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      setErrorNotice("Bulk draft failed: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleBulkDelete = async (ids) => {
+    setIsSaving(true);
+    setErrorNotice("");
+    try {
+      for (const id of ids) {
+        await deleteProject(id);
+      }
+      await loadProjects();
+      setSelectedProjectIds([]);
+      setNotice(`✓ Successfully deleted ${ids.length} projects.`);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      setErrorNotice("Bulk delete failed: " + err.message);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const loadProjects = async () => {
     const list = await getProjects();
     setProjects(list);
+    setSavedOrderIds(list.map((p) => p.id));
   };
 
   useEffect(() => {
@@ -722,9 +894,18 @@ export default function AdminProjectsPage() {
             </div>
 
             <div className="admin-form-actions">
-              <Button type="submit" variant="primary">
-                Save Project
+              <Button type="submit" variant="primary" disabled={isSaving}>
+                {isSaving ? "Saving..." : "Save Project"}
               </Button>
+
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setIsPreviewOpen(true)}
+                style={{ borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)" }}
+              >
+                👁 Live Preview (Draft)
+              </button>
               <Button onClick={() => setEditingProject(null)} variant="outline">
                 Cancel
               </Button>
@@ -733,122 +914,347 @@ export default function AdminProjectsPage() {
         </div>
       )}
 
+      {/* Unsaved Order Changes Indicator */}
+      {isOrderDirty && (
+        <div
+          role="alert"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "12px",
+            padding: "12px 18px",
+            background: "rgba(245, 158, 11, 0.15)",
+            border: "1px solid var(--accent-amber)",
+            borderRadius: "var(--radius-sm)",
+            color: "var(--accent-amber)",
+            marginBottom: "16px"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "600", fontSize: "13px" }}>
+            <span style={{ fontSize: "16px" }}>⚠️</span>
+            <span>You have unsaved project order changes. Changes are not yet persisted to Supabase.</span>
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              type="button"
+              onClick={handleResetOrder}
+              className="btn btn-outline btn-sm"
+              style={{ borderColor: "var(--accent-amber)", color: "var(--accent-amber)", fontSize: "12px" }}
+              disabled={isSaving}
+            >
+              Reset Order
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveOrder}
+              className="btn btn-primary btn-sm"
+              style={{ fontSize: "12px" }}
+              disabled={isSaving}
+            >
+              {isSaving ? "Saving Order..." : "Save Order"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Search and Status Filter Bar */}
+      <div className="admin-filter-bar admin-filter-grid-3">
+        <div className="admin-filter-field">
+          <label className="admin-filter-label">SEARCH PROJECTS</label>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by title, stack, or tech..."
+            className="admin-input"
+          />
+        </div>
+        <div className="admin-filter-field">
+          <label className="admin-filter-label">PUBLICATION STATUS</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="admin-input"
+          >
+            <option value="All">All Statuses ({projects.length})</option>
+            <option value="published">Published ({projects.filter((p) => (p.publicationStatus || p.publication_status || "published") === "published").length})</option>
+            <option value="draft">Draft ({projects.filter((p) => (p.publicationStatus || p.publication_status) === "draft").length})</option>
+            <option value="in-dev">In Development ({projects.filter((p) => p.status?.toLowerCase().includes("dev")).length})</option>
+          </select>
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-end", height: "100%" }}>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery("");
+              setStatusFilter("All");
+            }}
+            className="btn btn-outline btn-sm"
+            style={{ width: "100%", height: "38px" }}
+          >
+            Reset Filters
+          </button>
+        </div>
+      </div>
+
+      {/* Select All / Counter Bar */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          margin: "16px 0 8px",
+          padding: "4px 8px",
+          background: "var(--bg-elevated)",
+          borderRadius: "var(--radius-sm)",
+          border: "1px solid var(--border-subtle)"
+        }}
+      >
+        <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--text-bright)", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={projects.length > 0 && selectedProjectIds.length === projects.length}
+            onChange={(e) => {
+              if (e.target.checked) handleSelectAll();
+              else handleDeselectAll();
+            }}
+            style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "var(--accent-cyan)" }}
+          />
+          <span style={{ fontWeight: 600 }}>Select All ({projects.length} projects)</span>
+        </label>
+        {selectedProjectIds.length > 0 && (
+          <span style={{ fontSize: "12px", color: "var(--accent-cyan)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+            {selectedProjectIds.length} of {projects.length} selected
+          </span>
+        )}
+      </div>
+
       {/* Projects Table / Card List */}
       <div style={{ display: "grid", gap: "16px" }}>
-        {projects.map((p, idx) => {
-          const pubStatus = p.publicationStatus || p.publication_status || "published";
-          return (
-            <div key={p.id} className="card admin-project-row">
-              <div className="admin-project-card-inner">
-                {/* Reorder Column */}
-                <div className="admin-project-order-col">
-                  <button
-                    type="button"
-                    onClick={() => handleMove(idx, -1)}
-                    disabled={idx === 0}
-                    className="btn btn-ghost btn-sm"
-                    style={{ padding: "3px 6px", fontSize: "11px", lineHeight: 1 }}
-                    title="Move Up"
-                    aria-label={`Move project #${idx + 1} up`}
-                  >
-                    ▲
-                  </button>
-                  <span style={{ fontSize: "11px", color: "var(--accent-amber)", fontWeight: "700", fontFamily: "var(--font-mono)" }}>
-                    #{String(idx + 1).padStart(2, "0")}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleMove(idx, 1)}
-                    disabled={idx === projects.length - 1}
-                    className="btn btn-ghost btn-sm"
-                    style={{ padding: "3px 6px", fontSize: "11px", lineHeight: 1 }}
-                    title="Move Down"
-                    aria-label={`Move project #${idx + 1} down`}
-                  >
-                    ▼
-                  </button>
-                </div>
+        {(() => {
+          const filteredProjects = projects.filter((p) => {
+            const q = searchQuery.toLowerCase();
+            const matchesSearch =
+              !searchQuery ||
+              p.title?.toLowerCase().includes(q) ||
+              p.stack?.toLowerCase().includes(q) ||
+              p.description?.toLowerCase().includes(q);
+            const pStatus = p.publicationStatus || p.publication_status || "published";
+            const matchesStatus =
+              statusFilter === "All" ||
+              (statusFilter === "published" && pStatus === "published") ||
+              (statusFilter === "draft" && pStatus === "draft") ||
+              (statusFilter === "in-dev" && p.status?.toLowerCase().includes("dev"));
+            return matchesSearch && matchesStatus;
+          });
 
-                {/* Thumbnail or Generated Fallback */}
-                <div className="admin-project-thumb-col">
-                  <ProjectThumbnail project={p} />
-                </div>
+          if (filteredProjects.length === 0) {
+            return (
+              <div className="card" style={{ textAlign: "center", padding: "36px", color: "var(--text-muted)" }}>
+                No projects found matching the filter criteria.
+              </div>
+            );
+          }
 
-                <div className="admin-project-content-col">
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
-                    <h3 style={{ fontSize: "15px", color: "var(--text-bright)", margin: 0 }}>{p.title}</h3>
-                    {p.featured && (
-                      <span style={{ fontSize: "10px", padding: "2px 6px", borderRadius: "4px", background: "var(--accent-amber-soft)", color: "var(--accent-amber)", fontWeight: "700" }}>
-                        FEATURED
+          return filteredProjects.map((p, idx) => {
+            const pubStatus = p.publicationStatus || p.publication_status || "published";
+            const completeness = getProjectCompleteness(p);
+            const isDragging = draggedIdx === idx;
+            const isSelected = selectedProjectIds.includes(p.id);
+
+            return (
+              <div
+                key={p.id || idx}
+                className={`card admin-project-row admin-project-card admin-card ${isDragging ? "is-dragging" : ""}`}
+                draggable={!searchQuery && statusFilter === "All"}
+                onDragStart={(e) => handleDragStart(e, idx)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, idx)}
+                style={{
+                  cursor: !searchQuery && statusFilter === "All" ? "grab" : "default",
+                  opacity: isDragging ? 0.5 : 1,
+                  border: isSelected ? "1px solid var(--accent-cyan)" : undefined,
+                  background: isSelected ? "rgba(56, 189, 248, 0.05)" : undefined,
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease"
+                }}
+              >
+                <div className="admin-project-card-inner">
+                  {/* Compact Header Bar: Checkbox + Reorder Controls */}
+                  <div className="admin-card-header-bar">
+                    <label className="admin-card-select-wrap">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectProject(p.id)}
+                        aria-label={`Select project ${p.title}`}
+                        className="admin-card-checkbox"
+                      />
+                      <span className="admin-card-index-badge">
+                        #{String(idx + 1).padStart(2, "0")}
                       </span>
-                    )}
-                    <span className={`project-status ${p.status?.toLowerCase().includes("dev") ? "in-development" : "completed"}`}>
-                      {p.status}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "10px",
-                        fontWeight: "700",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                        background:
-                          pubStatus === "published"
-                            ? "rgba(16, 185, 129, 0.15)"
-                            : pubStatus === "draft"
-                            ? "rgba(245, 158, 11, 0.15)"
-                            : "rgba(100, 116, 139, 0.15)",
-                        color:
-                          pubStatus === "published"
-                            ? "var(--accent-emerald)"
-                            : pubStatus === "draft"
-                            ? "var(--accent-amber)"
-                            : "var(--text-dim)",
-                        border: "1px solid currentColor"
-                      }}
+                    </label>
+
+                    <div className="admin-card-reorder-wrap">
+                      <button
+                        type="button"
+                        onClick={() => handleMove(idx, -1)}
+                        disabled={idx === 0}
+                        className="btn btn-ghost btn-sm admin-card-reorder-btn"
+                        title="Move Up"
+                        aria-label={`Move project #${idx + 1} up`}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMove(idx, 1)}
+                        disabled={idx === projects.length - 1}
+                        className="btn btn-ghost btn-sm admin-card-reorder-btn"
+                        title="Move Down"
+                        aria-label={`Move project #${idx + 1} down`}
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Thumbnail or Generated Fallback */}
+                  <div className="admin-project-thumb-col">
+                    <ProjectThumbnail project={p} />
+                  </div>
+
+                  <div className="admin-project-content-col">
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", flexWrap: "wrap" }}>
+                      <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-bright)", margin: 0, wordBreak: "break-word" }}>{p.title}</h3>
+                      {p.featured && (
+                        <span className="admin-status-pill featured-pill" style={{ fontSize: "10px", padding: "2px 6px", borderRadius: "4px", background: "var(--accent-amber-soft)", color: "var(--accent-amber)", fontWeight: "700", border: "1px solid var(--accent-amber)", whiteSpace: "nowrap" }}>
+                          FEATURED
+                        </span>
+                      )}
+                      <span className={`project-status ${p.status?.toLowerCase().includes("dev") ? "in-development" : "completed"}`} style={{ whiteSpace: "nowrap" }}>
+                        {p.status}
+                      </span>
+                      <span
+                        className="admin-status-pill pub-pill"
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: "700",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          background:
+                            pubStatus === "published"
+                              ? "rgba(16, 185, 129, 0.15)"
+                              : pubStatus === "draft"
+                              ? "rgba(245, 158, 11, 0.15)"
+                              : "rgba(100, 116, 139, 0.15)",
+                          color:
+                            pubStatus === "published"
+                              ? "var(--accent-emerald)"
+                              : pubStatus === "draft"
+                              ? "var(--accent-amber)"
+                              : "var(--text-dim)",
+                          border: "1px solid currentColor",
+                          whiteSpace: "nowrap",
+                          wordBreak: "normal",
+                          overflowWrap: "normal",
+                          flexShrink: 0,
+                          display: "inline-flex",
+                          alignItems: "center"
+                        }}
+                      >
+                        {pubStatus.toUpperCase()}
+                      </span>
+                      <span
+                        className="admin-status-pill completeness-pill"
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: "700",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          background: completeness >= 80 ? "rgba(16, 185, 129, 0.12)" : "rgba(245, 158, 11, 0.12)",
+                          color: completeness >= 80 ? "var(--accent-emerald)" : "var(--accent-amber)",
+                          border: "1px solid currentColor",
+                          fontFamily: "var(--font-mono)",
+                          whiteSpace: "nowrap",
+                          wordBreak: "normal",
+                          overflowWrap: "normal",
+                          flexShrink: 0,
+                          display: "inline-flex",
+                          alignItems: "center"
+                        }}
+                        title={`Completeness audit score: ${completeness}%`}
+                      >
+                        {completeness}% COMPLETE
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: "12.5px", color: "var(--accent-cyan)", marginBottom: "3px", fontWeight: "600" }}>
+                      {p.type}
+                    </div>
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px", lineHeight: "1.4", wordBreak: "break-word" }}>
+                      Stack: {p.stack}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "var(--text-dim)", overflowWrap: "anywhere", wordBreak: "break-all" }}>
+                      Slug: <code style={{ color: "var(--text-main)" }}>/projects/{p.slug}</code>
+                    </div>
+                  </div>
+
+                  <div className="admin-project-actions-col admin-card-actions">
+                    <Button onClick={() => handleEdit(p)} variant="outline" size="sm" className="admin-action-btn">
+                      Edit ✎
+                    </Button>
+                    <Button onClick={() => handleDuplicate(p)} variant="outline" size="sm" className="admin-action-btn">
+                      Duplicate ⎘
+                    </Button>
+                    <Button
+                      to={`/projects/${p.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      variant="ghost"
+                      size="sm"
+                      className="admin-action-btn"
                     >
-                      {pubStatus.toUpperCase()}
-                    </span>
+                      View ↗
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(p.id, p.title)}
+                      className="btn btn-ghost btn-sm admin-action-btn admin-delete-btn"
+                      style={{ color: "#f87171" }}
+                      aria-label={`Delete ${p.title}`}
+                    >
+                      Delete ✕
+                    </button>
                   </div>
-
-                  <div style={{ fontSize: "12px", color: "var(--accent-cyan)", marginBottom: "3px" }}>
-                    {p.type}
-                  </div>
-                  <div style={{ fontSize: "12px", color: "var(--text-muted)", marginBottom: "4px" }}>
-                    Stack: {p.stack}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "var(--text-dim)" }}>
-                    Slug: <code style={{ color: "var(--text-main)" }}>/projects/{p.slug}</code>
-                  </div>
-                </div>
-
-                <div className="admin-project-actions-col">
-                  <Button onClick={() => handleEdit(p)} variant="outline" size="sm">
-                    Edit ✎
-                  </Button>
-                  <Button
-                    to={`/projects/${p.slug}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    variant="ghost"
-                    size="sm"
-                  >
-                    View ↗
-                  </Button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(p.id, p.title)}
-                    className="btn btn-ghost btn-sm"
-                    style={{ color: "#f87171" }}
-                    aria-label={`Delete ${p.title}`}
-                  >
-                    Delete ✕
-                  </button>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          });
+        })()}
       </div>
+
+      {/* Floating Bulk Actions Toolbar */}
+      <AdminBulkActionsBar
+        selectedIds={selectedProjectIds}
+        totalCount={projects.length}
+        onSelectAll={handleSelectAll}
+        onDeselectAll={handleDeselectAll}
+        onBulkPublish={handleBulkPublish}
+        onBulkDraft={handleBulkDraft}
+        onBulkDelete={handleBulkDelete}
+        itemTypeLabel="projects"
+        selectedItems={projects.filter((p) => selectedProjectIds.includes(p.id))}
+      />
+
+      {/* Live Content Preview Modal */}
+      <AdminContentPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        type="project"
+        data={editingProject}
+      />
     </div>
   );
 }

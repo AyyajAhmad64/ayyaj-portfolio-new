@@ -54,7 +54,7 @@ export default function DeveloperSnapshot({ customData }) {
         <div className="focus-row">
           <span className="focus-label">LOCATION</span>
           <span className="focus-value">
-            {snapshot.location || profile?.location || "Hinjawadi, Pune, Maharashtra, India"}
+            {snapshot.location || profile?.location || "Pune, Maharashtra, India"}
           </span>
         </div>
       </div>

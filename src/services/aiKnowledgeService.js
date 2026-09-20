@@ -7,6 +7,9 @@
 
 import { getStoreSync } from "./dataService.js";
 import { resolveAboutContent } from "../utils/contentDefaults.js";
+import { resolveJarvisQuery } from "./jarvisIntelligenceService.js";
+
+export { resolveJarvisQuery };
 
 /**
  * Primary interface for querying JARVIS.
@@ -62,6 +65,12 @@ export async function queryJARVIS(prompt, history = [], customStore = null) {
 export const queryAIAssistant = queryJARVIS;
 
 function resolveLocalKnowledge(q, store) {
+  // 0. ASK JARVIS Intelligence 2.0 Engine (Grounded, Safe, Explainable)
+  const intel = resolveJarvisQuery(q, store);
+  if (intel && intel.intent !== "UNKNOWN" && intel.intent !== "EMPTY") {
+    return intel.text;
+  }
+
   const profile = store?.profile || {};
   const contact = profile.contact || {};
   const experience = store?.experience || [];

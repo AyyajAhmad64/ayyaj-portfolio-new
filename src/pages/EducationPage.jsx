@@ -4,6 +4,7 @@ import PageHeader from "../components/PageHeader";
 import EducationCard from "../components/EducationCard";
 import Button from "../components/Button";
 import SEO from "../components/SEO";
+import NextPageNavigation from "../components/NextPageNavigation";
 
 export default function EducationPage() {
   const { education } = usePortfolioData();
@@ -52,6 +53,15 @@ export default function EducationPage() {
           Contact for Inquiries →
         </Button>
       </section>
+
+      <NextPageNavigation
+        prev={{ label: "Projects Catalog", to: "/projects" }}
+        next={{
+          label: "Achievements",
+          to: "/achievements",
+          description: "Explore recognized honors, milestones, and competitive programming selections."
+        }}
+      />
     </>
   );
 }

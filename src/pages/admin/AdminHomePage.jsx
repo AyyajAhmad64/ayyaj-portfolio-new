@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { getProfile, updateProfile, getSettings, updateSettings } from "../../services/dataService";
 import { usePortfolioData } from "../../context/PortfolioDataContext";
 import { resolveHomeContent } from "../../utils/contentDefaults";
@@ -7,14 +7,16 @@ import Button from "../../components/Button";
 import SEO from "../../components/SEO";
 
 export function getDerivedCtaLabel(item) {
-  if (!item || !item.type) return "View Details →";
+  if (!item || !item.type || !item.contentId) return "Auto-derived after selecting item";
   switch (item.type) {
     case "project":
       return "Explore Case Study →";
     case "certification":
-      return "View Certificate →";
+      return "Verify Credential →";
+    case "gallery":
+      return "View Gallery →";
     case "achievement":
-      return "View Achievement →";
+      return "View Details →";
     case "experience":
       return "View Experience →";
     default:
@@ -22,11 +24,72 @@ export function getDerivedCtaLabel(item) {
   }
 }
 
+export function getEntityPreviewData(item, { projects, certifications, gallery, achievements, experience }) {
+  if (!item || !item.type || !item.contentId) return null;
+  if (item.type === "project") {
+    const p = (projects || []).find((proj) => proj.slug === item.contentId || proj.id === item.contentId);
+    if (!p) return null;
+    return {
+      title: p.title,
+      category: p.type || "Project",
+      meta: Array.isArray(p.technologies) ? p.technologies.slice(0, 3).join(" • ") : p.stack || "Architecture",
+      thumb: p.thumbnail || p.image || null,
+      fallbackIcon: "⚡"
+    };
+  }
+  if (item.type === "certification") {
+    const c = (certifications || []).find((cert) => cert.id === item.contentId);
+    if (!c) return null;
+    return {
+      title: c.name || c.title,
+      category: "Certification",
+      meta: `${c.issuer} · ${c.date || "2026"}`,
+      thumb: c.image || (c.certificateUrl && /\.(png|jpe?g|webp|gif|svg)$/i.test(c.certificateUrl) ? c.certificateUrl : null),
+      fallbackIcon: "📜"
+    };
+  }
+  if (item.type === "gallery") {
+    const g = (gallery || []).find((gal) => gal.id === item.contentId || gal.slug === item.contentId);
+    if (!g) return null;
+    return {
+      title: g.title,
+      category: g.category || "Visual",
+      meta: `${g.category || "Gallery"} · ${g.date || "2026"}`,
+      thumb: g.src || g.thumbnail || g.imageUrl || null,
+      fallbackIcon: "📷"
+    };
+  }
+  if (item.type === "achievement") {
+    const a = (achievements || []).find((ach) => ach.id === item.contentId || ach.slug === item.contentId);
+    if (!a) return null;
+    return {
+      title: a.title,
+      category: a.type || "Milestone",
+      meta: `${a.organization} · ${a.date || "2026"}`,
+      thumb: a.image || null,
+      fallbackIcon: "🏆"
+    };
+  }
+  if (item.type === "experience") {
+    const e = (experience || []).find((exp) => exp.id === item.contentId);
+    if (!e) return null;
+    return {
+      title: `${e.role} @ ${e.company}`,
+      category: e.employmentType || "Experience",
+      meta: `${e.location} · ${e.startDate}–${e.endDate}`,
+      thumb: null,
+      fallbackIcon: "💼"
+    };
+  }
+  return null;
+}
+
 export default function AdminHomePage() {
   const {
     refresh,
     projects = [],
     certifications = [],
+    gallery = [],
     experience = [],
     achievements = []
   } = usePortfolioData();
@@ -34,9 +97,15 @@ export default function AdminHomePage() {
   const [settings, setSettings] = useState(null);
   const [activeTab, setActiveTab] = useState("hero"); // 'hero' | 'featured' | 'sections' | 'principles' | 'cta'
   const [featuredList, setFeaturedList] = useState([]);
+  const [initialFeaturedList, setInitialFeaturedList] = useState([]);
   const [notice, setNotice] = useState("");
   const [errorNotice, setErrorNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  const isFeaturedOrderDirty = useMemo(() => {
+    if (!initialFeaturedList.length || initialFeaturedList.length !== featuredList.length) return false;
+    return featuredList.some((item, idx) => (item.contentId || item.id) !== (initialFeaturedList[idx].contentId || initialFeaturedList[idx].id));
+  }, [featuredList, initialFeaturedList]);
 
   // Hero State
   const [hero, setHero] = useState({
@@ -140,10 +209,16 @@ export default function AdminHomePage() {
         primaryBtn: home.contactCtaButtonText,
         secondaryBtn: home.contactEmailButtonText
       });
-      const feats = Array.isArray(s?.featuredItems) && s.featuredItems.length > 0
-        ? s.featuredItems
-        : defaultFeaturedItems;
+      let feats;
+      if (Array.isArray(s?.featuredItems)) {
+        feats = s.featuredItems;
+      } else if (Array.isArray(p?.snapshot?.home?.featuredItems)) {
+        feats = p.snapshot.home.featuredItems;
+      } else {
+        feats = defaultFeaturedItems;
+      }
       setFeaturedList(feats);
+      setInitialFeaturedList(feats);
     }
     load();
   }, []);
@@ -157,7 +232,7 @@ export default function AdminHomePage() {
       badge: "",
       tagline: "",
       ctaLabel: "",
-      enabled: false,
+      enabled: true,
       sortOrder: featuredList.length + 1,
       isNew: true
     };
@@ -197,6 +272,48 @@ export default function AdminHomePage() {
     setFeaturedList(updated);
   };
 
+  const [draggedIdx, setDraggedIdx] = useState(null);
+
+  const handleDragStart = (e, index) => {
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+    try {
+      e.dataTransfer.setData("text/plain", String(index));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e, targetIdx) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === targetIdx) return;
+    const updated = [...featuredList];
+    const [removed] = updated.splice(draggedIdx, 1);
+    updated.splice(targetIdx, 0, removed);
+    updated.forEach((item, i) => {
+      item.sortOrder = i + 1;
+    });
+    setFeaturedList(updated);
+    setDraggedIdx(null);
+  };
+
+  const handleResetOrder = () => {
+    const updated = [...featuredList].map((item, i) => ({
+      ...item,
+      sortOrder: i + 1
+    }));
+    setFeaturedList(updated);
+    if (!initialFeaturedList.length) return;
+    setFeaturedList([...initialFeaturedList]);
+    setNotice("Featured Showcase order reset to last saved state.");
+    setTimeout(() => setNotice(""), 2000);
+  };
+
   const handleSave = async (e) => {
     e?.preventDefault();
     setIsSaving(true);
@@ -214,6 +331,7 @@ export default function AdminHomePage() {
         heroStackPills: stackPillsArray,
         heroFrameCaption: hero.heroFrameCaption,
         heroFrameSub: hero.heroFrameSub,
+        featuredItems: featuredList,
 
         // Headers
         featuredHeading: sectionHeaders.featuredHeading,
@@ -263,6 +381,7 @@ export default function AdminHomePage() {
       ]);
 
       setErrorNotice("");
+      setInitialFeaturedList([...featuredList]);
       if (refresh) await refresh();
 
       if (savedSettings?.__featuredItemsPendingMigration) {
@@ -272,6 +391,8 @@ export default function AdminHomePage() {
         setNotice("✓ Home page configuration and content successfully saved to Supabase!");
         setTimeout(() => setNotice(""), 3500);
       }
+      setNotice("✓ Home page configuration and content successfully saved to Supabase!");
+      setTimeout(() => setNotice(""), 3500);
     } catch (err) {
       console.error("Failed to save home page:", err);
       setErrorNotice(err.message || "Cloud save failed. Your changes were not saved.");
@@ -488,40 +609,160 @@ export default function AdminHomePage() {
           <div className="card" style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%", minWidth: 0, boxSizing: "border-box" }}>
             <div className="section-row-header" style={{ flexWrap: "wrap", gap: "12px", alignItems: "flex-start" }}>
               <div style={{ minWidth: 0, flex: "1 1 280px" }}>
-                <span className="section-micro-label" style={{ color: "var(--accent-amber)" }}>HOMEPAGE CONTENT &gt; FEATURED SHOWCASE</span>
-                <h2 className="section-title-sm" style={{ margin: "4px 0 6px" }}>Featured Showcase Curator</h2>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                  <span className="section-micro-label" style={{ color: "var(--accent-amber)" }}>HOMEPAGE CONTENT &gt; FEATURED SHOWCASE</span>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: "700",
+                      padding: "2px 8px",
+                      borderRadius: "9999px",
+                      background: "rgba(56, 189, 248, 0.12)",
+                      color: "var(--accent-cyan)",
+                      border: "1px solid rgba(56, 189, 248, 0.3)"
+                    }}
+                  >
+                    {featuredList.filter((i) => i.enabled !== false && Boolean(i.contentId)).length} active items ({featuredList.length} total)
+                  </span>
+                </div>
+                <h2 className="section-title-sm" style={{ margin: "6px 0" }}>Featured Showcase Curator</h2>
                 <p style={{ fontSize: "13px", color: "var(--text-muted)", margin: 0, lineHeight: "1.5" }}>
-                  Select and arrange the flagship projects, verified credentials, and experience spotlights displayed in the home page showcase grid.
+                  Select, drag, and arrange the flagship projects, verified credentials, and visual spotlights displayed in the curated home page showcase.
                 </p>
               </div>
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
                 <Button type="button" onClick={handleAddFeaturedItem} variant="primary" size="sm">
                   + Add Featured Item
                 </Button>
+                <button
+                  type="button"
+                  onClick={handleResetOrder}
+                  disabled={featuredList.length <= 1}
+                  className="btn btn-outline btn-sm"
+                  title="Normalize sort orders sequentially 1..N"
+                  style={{ opacity: featuredList.length <= 1 ? 0.4 : 1 }}
+                >
+                  Reset Order
+                </button>
+                <a
+                  href="/#projects"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-ghost btn-sm"
+                  title="Open live public Featured Work section in new tab"
+                >
+                  Preview Featured Work ↗
+                </a>
               </div>
             </div>
 
+            {/* Unsaved Order Changes Indicator */}
+            {isFeaturedOrderDirty && (
+              <div
+                role="alert"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "12px",
+                  padding: "12px 18px",
+                  background: "rgba(245, 158, 11, 0.15)",
+                  border: "1px solid var(--accent-amber)",
+                  borderRadius: "var(--radius-sm)",
+                  color: "var(--accent-amber)",
+                  marginBottom: "16px"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "600", fontSize: "13px" }}>
+                  <span style={{ fontSize: "16px" }}>⚠️</span>
+                  <span>You have unsaved showcase order changes. Click &quot;Save Configuration&quot; to commit to Supabase.</span>
+                </div>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    type="button"
+                    onClick={handleResetOrder}
+                    className="btn btn-outline btn-sm"
+                    style={{ borderColor: "var(--accent-amber)", color: "var(--accent-amber)", fontSize: "12px" }}
+                    disabled={isSaving}
+                  >
+                    Reset Order
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="btn btn-primary btn-sm"
+                    style={{ fontSize: "12px" }}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? "Saving..." : "Save Configuration"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* List of Featured Items */}
             <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%", minWidth: 0 }}>
-              {featuredList.map((item, idx) => {
+              {featuredList.length === 0 ? (
+                <div
+                  style={{
+                    textAlign: "center",
+                    padding: "36px 20px",
+                    background: "var(--bg-elevated)",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px dashed var(--border-subtle)",
+                    color: "var(--text-muted)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "12px"
+                  }}
+                >
+                  <span style={{ fontSize: "28px" }}>📭</span>
+                  <p style={{ margin: 0, fontSize: "14px", fontWeight: "600", color: "var(--text-bright)" }}>
+                    No featured items configured
+                  </p>
+                  <p style={{ margin: 0, fontSize: "12.5px", color: "var(--text-dim)", maxWidth: "420px" }}>
+                    The public homepage Featured Showcase section is currently hidden. Click the button below to curate your first spotlight item.
+                  </p>
+                  <Button type="button" onClick={handleAddFeaturedItem} variant="primary" size="sm">
+                    + Add First Featured Item
+                  </Button>
+                </div>
+              ) : (
+                featuredList.map((item, idx) => {
                 const isFirst = idx === 0;
                 const isLast = idx === featuredList.length - 1;
-                const isUnconfigured = !item.contentId;
+                const isUnconfigured = !item.type || !item.contentId;
+                const entityData = getEntityPreviewData(item, { projects, certifications, gallery, achievements, experience });
 
                 return (
                   <div
                     key={item.id || idx}
                     id={item.id}
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={(e) => handleDragOver(e, idx)}
+                    onDrop={(e) => handleDrop(e, idx)}
+                    onDragEnd={() => setDraggedIdx(null)}
                     className={`admin-featured-card ${item.isNew || isUnconfigured ? "is-new" : ""}`}
+                    style={{
+                      opacity: draggedIdx === idx ? 0.45 : 1,
+                      transition: "opacity 0.15s ease",
+                      cursor: "grab"
+                    }}
                   >
                     {/* 1. Header: Order controls, Title / Status, Active toggle, Delete */}
                     <div className="admin-featured-card-header">
                       <div className="admin-featured-card-title-group">
+                        <span title="Drag to reorder" style={{ cursor: "grab", color: "var(--text-dim)", fontSize: "16px", userSelect: "none" }}>
+                          ⠿
+                        </span>
                         <span style={{ fontSize: "12px", color: "var(--accent-amber)", fontWeight: "700", fontFamily: "var(--font-mono)" }}>
                           #{String(idx + 1).padStart(2, "0")}
                         </span>
                         <span style={{ fontSize: "13.5px", fontWeight: "700", color: "var(--text-bright)", textTransform: "capitalize" }}>
-                          {item.type || "Custom"} Spotlight
+                          {item.type ? `${item.type} Spotlight` : "New Spotlight"}
                         </span>
                         {isUnconfigured && (
                           <span
@@ -536,7 +777,7 @@ export default function AdminHomePage() {
                               letterSpacing: "0.04em"
                             }}
                           >
-                            NEW / UNLINKED
+                            SELECT ENTITY
                           </span>
                         )}
                         <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", color: item.enabled !== false ? "var(--accent-emerald)" : "var(--text-muted)", cursor: "pointer" }}>
@@ -560,7 +801,7 @@ export default function AdminHomePage() {
                             className="btn btn-outline btn-sm"
                             style={{ padding: "4px 8px", fontSize: "11px", opacity: isFirst ? 0.35 : 1, cursor: isFirst ? "not-allowed" : "pointer" }}
                           >
-                            ▲ Up
+                            ↑ Move Up
                           </button>
                           <button
                             type="button"
@@ -571,7 +812,7 @@ export default function AdminHomePage() {
                             className="btn btn-outline btn-sm"
                             style={{ padding: "4px 8px", fontSize: "11px", opacity: isLast ? 0.35 : 1, cursor: isLast ? "not-allowed" : "pointer" }}
                           >
-                            ▼ Down
+                            ↓ Move Down
                           </button>
                         </div>
                         <button
@@ -580,6 +821,7 @@ export default function AdminHomePage() {
                           className="btn btn-ghost btn-sm"
                           style={{ color: "#f87171", padding: "4px 8px", fontSize: "11px" }}
                           aria-label={`Delete item ${idx + 1}`}
+                          title="Delete featured item"
                         >
                           ✕ Delete
                         </button>
@@ -599,15 +841,17 @@ export default function AdminHomePage() {
                               const newType = e.target.value;
                               handleUpdateFeaturedItem(idx, {
                                 type: newType,
-                                contentId: ""
+                                contentId: "",
+                                isNew: false
                               });
                             }}
                           >
-                            <option value="">-- Select Content Type --</option>
+                            <option value="">[ Select Content Type ]</option>
                             <option value="project">Project</option>
-                            <option value="certification">Certification / Training</option>
+                            <option value="certification">Certification</option>
+                            <option value="gallery">Gallery Visual Item</option>
+                            <option value="achievement">Achievement</option>
                             <option value="experience">Experience Spotlight</option>
-                            <option value="achievement">Achievement / Milestone</option>
                           </select>
                         </div>
 
@@ -615,7 +859,7 @@ export default function AdminHomePage() {
                           <label className="admin-label">LINKED ENTITY</label>
                           {!item.type && (
                             <select className="admin-input" disabled value="">
-                              <option value="">-- Select content type first --</option>
+                              <option value="">[ Select content type first ]</option>
                             </select>
                           )}
                           {item.type === "project" && (
@@ -651,16 +895,16 @@ export default function AdminHomePage() {
                               )}
                             </select>
                           )}
-                          {item.type === "experience" && (
+                          {item.type === "gallery" && (
                             <select
                               className="admin-input"
                               value={item.contentId || ""}
                               onChange={(e) => handleUpdateFeaturedItem(idx, { contentId: e.target.value, isNew: false })}
                             >
-                              <option value="">-- Select an experience to feature --</option>
-                              {experience.map((e) => (
-                                <option key={e.id} value={e.id}>
-                                  {e.role} @ {e.company}
+                              <option value="">-- Select a gallery item to feature --</option>
+                              {gallery.map((g) => (
+                                <option key={g.id} value={g.id}>
+                                  {g.title} ({g.category || "Visual"})
                                 </option>
                               ))}
                             </select>
@@ -679,8 +923,59 @@ export default function AdminHomePage() {
                               ))}
                             </select>
                           )}
+                          {item.type === "experience" && (
+                            <select
+                              className="admin-input"
+                              value={item.contentId || ""}
+                              onChange={(e) => handleUpdateFeaturedItem(idx, { contentId: e.target.value, isNew: false })}
+                            >
+                              <option value="">-- Select an experience to feature --</option>
+                              {experience.map((e) => (
+                                <option key={e.id} value={e.id}>
+                                  {e.role} @ {e.company}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                       </div>
+
+                      {/* Live Entity Preview in Admin Card */}
+                      {entityData && (
+                        <div className="admin-featured-preview-panel">
+                          <div className="admin-featured-preview-thumb">
+                            {entityData.thumb ? (
+                              <img
+                                src={entityData.thumb}
+                                alt={entityData.title}
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                loading="lazy"
+                                decoding="async"
+                              />
+                            ) : (
+                              <div style={{ width: "100%", height: "100%", display: "grid", placeItems: "center", fontSize: "20px", background: "var(--bg-base)" }}>
+                                {entityData.fallbackIcon}
+                              </div>
+                            )}
+                          </div>
+                          <div className="admin-featured-preview-info">
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                              <span style={{ fontSize: "10px", fontWeight: "700", padding: "1px 6px", borderRadius: "3px", background: "rgba(56, 189, 248, 0.15)", color: "var(--accent-cyan)", textTransform: "uppercase" }}>
+                                {entityData.category}
+                              </span>
+                              <span style={{ fontSize: "11px", color: "var(--text-dim)" }}>
+                                {entityData.meta}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-bright)", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={entityData.title}>
+                              {entityData.title}
+                            </div>
+                            <div style={{ fontSize: "11px", color: "var(--accent-amber)", marginTop: "2px" }}>
+                              Action: {getDerivedCtaLabel(item)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* 3. Display Configuration: Custom Badge & CTA Label */}
@@ -736,7 +1031,7 @@ export default function AdminHomePage() {
                     </div>
                   </div>
                 );
-              })}
+              }))}
             </div>
 
             {/* Bottom Actions for Featured Tab */}

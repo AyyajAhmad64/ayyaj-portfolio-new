@@ -148,6 +148,19 @@ export default function Navbar() {
             <span className="nav-resume-text">Resume</span>
             <span className="nav-resume-arrow" aria-hidden="true">↗</span>
           </NavLink>
+          {/* Dedicated Resume Page Navigation Action (Hidden in recruiter mode) */}
+          {!isRecruiter && (
+            <NavLink
+              to="/resume"
+              className={({ isActive }) => `nav-resume-action ${isActive ? "active" : ""}`}
+              title="Open dedicated Resume page"
+              aria-label="View official Resume"
+            >
+              <span className="nav-resume-icon" aria-hidden="true">📄</span>
+              <span className="nav-resume-text">Resume</span>
+              <span className="nav-resume-arrow" aria-hidden="true">↗</span>
+            </NavLink>
+          )}
 
           {/* Mobile Menu Toggle Button */}
           <button

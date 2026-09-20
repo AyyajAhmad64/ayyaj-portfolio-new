@@ -54,6 +54,7 @@ export default function Lightbox({
           <img
             src={activeItem.src}
             alt={activeItem.alt || activeItem.title}
+            decoding="async"
             className="lightbox-img"
           />
 

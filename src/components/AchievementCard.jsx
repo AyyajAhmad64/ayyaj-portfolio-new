@@ -8,7 +8,13 @@ export default function AchievementCard({ achievement }) {
       {/* Visual Thumbnail: Image or Designed Achievement Milestone Panel */}
       <div className="showcase-thumb-panel">
         {achievement.image ? (
-          <img src={achievement.image} alt={achievement.title} className="showcase-thumb-img" />
+          <img
+            src={achievement.image}
+            alt={achievement.title}
+            loading="lazy"
+            decoding="async"
+            className="showcase-thumb-img"
+          />
         ) : (
           <div className="achievement-preview-panel">
             <div className="achievement-preview-top">

@@ -260,13 +260,13 @@ export default function AdminExperiencePage() {
 
       <div style={{ display: "grid", gap: "16px" }}>
         {list.map((item) => (
-          <div key={item.id} className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", flexWrap: "wrap" }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <h3 style={{ fontSize: "16px", color: "var(--text-bright)", margin: 0 }}>{item.role}</h3>
+          <div key={item.id} className="card admin-experience-card admin-card">
+            <div className="admin-experience-card-inner">
+              <div className="admin-experience-content">
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                  <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--text-bright)", margin: 0, wordBreak: "break-word" }}>{item.role}</h3>
                   {item.current && (
-                    <span style={{ fontSize: "10.5px", padding: "2px 6px", borderRadius: "4px", background: "var(--accent-cyan-soft)", color: "var(--accent-cyan)", fontWeight: "700" }}>
+                    <span className="admin-status-pill current-pill" style={{ fontSize: "10.5px", padding: "2px 6px", borderRadius: "4px", background: "var(--accent-cyan-soft)", color: "var(--accent-cyan)", fontWeight: "700", border: "1px solid var(--accent-cyan)", whiteSpace: "nowrap" }}>
                       CURRENT ROLE
                     </span>
                   )}
@@ -277,7 +277,7 @@ export default function AdminExperiencePage() {
                 <div style={{ fontSize: "12px", color: "var(--text-dim)", marginTop: "2px" }}>
                   {item.startDate} – {item.endDate} · {item.location}
                 </div>
-                <p style={{ color: "var(--text-muted)", fontSize: "13px", marginTop: "8px", maxWidth: "68ch" }}>
+                <p style={{ color: "var(--text-muted)", fontSize: "13px", marginTop: "8px", maxWidth: "68ch", lineHeight: "1.5", wordBreak: "break-word" }}>
                   {item.description}
                 </p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "10px" }}>
@@ -289,14 +289,14 @@ export default function AdminExperiencePage() {
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: "8px" }}>
-                <Button onClick={() => handleEdit(item)} variant="outline" size="sm">
+              <div className="admin-card-actions">
+                <Button onClick={() => handleEdit(item)} variant="outline" size="sm" className="admin-action-btn">
                   Edit ✎
                 </Button>
                 <button
                   type="button"
                   onClick={() => handleDelete(item.id, item.role)}
-                  className="btn btn-ghost btn-sm"
+                  className="btn btn-ghost btn-sm admin-action-btn admin-delete-btn"
                   style={{ color: "#f87171" }}
                 >
                   Delete ✕

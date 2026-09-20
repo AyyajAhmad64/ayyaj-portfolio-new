@@ -6,6 +6,7 @@ import { isSupabaseConfigured } from "../lib/supabaseClient";
 import PageHeader from "../components/PageHeader";
 import Button from "../components/Button";
 import SEO from "../components/SEO";
+import NextPageNavigation from "../components/NextPageNavigation";
 
 export default function ResumePage() {
   const { profile } = usePortfolioData();
@@ -193,6 +194,15 @@ export default function ResumePage() {
           </Button>
         </div>
       </div>
+
+      <NextPageNavigation
+        prev={{ label: "Get in Touch", to: "/contact" }}
+        finalCta={{
+          label: "Return to Home",
+          to: "/",
+          description: "Return to the main landing page to explore capabilities and selected work."
+        }}
+      />
     </>
   );
 }

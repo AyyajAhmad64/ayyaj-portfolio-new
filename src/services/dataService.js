@@ -35,6 +35,14 @@ function getStore() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed.media) || parsed.media.length === 0) {
+          parsed.media = [
+            { id: "m-profile", name: "profile.jpg", url: "/profile.jpg", type: "image/jpeg", size: "1.8 MB", date: "2026-09" },
+            { id: "m-resume", name: "Ayyaj Kalandar Shaikh - Resume.pdf", url: "/Ayyaj Kalandar Shaikh - Resume.pdf", type: "application/pdf", size: "386 KB", date: "2026-09" }
+          ];
+        }
+        return parsed;
       }
     } catch (err) {
       console.warn("Could not read local data store:", err);
@@ -212,6 +220,9 @@ export async function syncWithSupabase() {
     }
     if (cloudSettings.status === "fulfilled" && cloudSettings.value) {
       store.settings = { ...store.settings, ...cloudSettings.value };
+      if (!Array.isArray(store.settings.featuredItems) && Array.isArray(store.profile?.snapshot?.home?.featuredItems)) {
+        store.settings.featuredItems = store.profile.snapshot.home.featuredItems;
+      }
       changed = true;
     }
 

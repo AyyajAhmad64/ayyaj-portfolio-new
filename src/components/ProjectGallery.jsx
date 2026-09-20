@@ -113,6 +113,8 @@ export default function ProjectGallery({ project }) {
         <img
           src={currentImage}
           alt={`${project?.title} screenshot ${safeIndex + 1}`}
+          loading="lazy"
+          decoding="async"
           className="project-hero-img"
           onError={() => handleImageError(currentImage)}
         />

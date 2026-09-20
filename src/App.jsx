@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ModeProvider } from "./context/ModeContext";
 import { AdminAuthProvider, AdminProtectedRoute } from "./context/AdminAuthContext";
 import { PortfolioDataProvider } from "./context/PortfolioDataContext";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Core Layout & Initial Page (Eagerly loaded for instant 0ms FCP on homepage)
 import RootLayout from "./layouts/RootLayout";
@@ -50,6 +51,8 @@ const AdminVersionsPage = lazy(() => import("./pages/admin/AdminVersionsPage"));
 const AdminJarvisPage = lazy(() => import("./pages/admin/AdminJarvisPage"));
 const AdminAnalyticsPage = lazy(() => import("./pages/admin/AdminAnalyticsPage"));
 const AdminSeoPage = lazy(() => import("./pages/admin/AdminSeoPage"));
+const AdminHealthPage = lazy(() => import("./pages/admin/AdminHealthPage"));
+const AdminBackupPage = lazy(() => import("./pages/admin/AdminBackupPage"));
 
 // Sleek, accessible loading indicator for asynchronously loaded route chunks
 function RouteLoadingFallback() {
@@ -76,11 +79,12 @@ function RouteLoadingFallback() {
 
 export default function App() {
   return (
-    <PortfolioDataProvider>
-      <AdminAuthProvider>
-        <ModeProvider>
-          <BrowserRouter>
-            <Suspense fallback={<RouteLoadingFallback />}>
+    <ErrorBoundary>
+      <PortfolioDataProvider>
+        <AdminAuthProvider>
+          <ModeProvider>
+            <BrowserRouter>
+              <Suspense fallback={<RouteLoadingFallback />}>
               <Routes>
                 {/* Public Portfolio View */}
                 <Route path="/" element={<RootLayout />}>
@@ -134,6 +138,8 @@ export default function App() {
                   <Route path="jarvis" element={<AdminJarvisPage />} />
                   <Route path="analytics" element={<AdminAnalyticsPage />} />
                   <Route path="seo" element={<AdminSeoPage />} />
+                  <Route path="health" element={<AdminHealthPage />} />
+                  <Route path="backup" element={<AdminBackupPage />} />
                   <Route path="versions" element={<AdminVersionsPage />} />
                   <Route path="audit" element={<AdminAuditPage />} />
                   <Route path="settings" element={<AdminSettingsPage />} />
@@ -147,5 +153,6 @@ export default function App() {
         </ModeProvider>
       </AdminAuthProvider>
     </PortfolioDataProvider>
+  </ErrorBoundary>
   );
 }

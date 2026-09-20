@@ -21,7 +21,13 @@ export default function CertificationCard({ cert }) {
       {/* Visual Thumbnail: Image or Designed Credential Seal Panel */}
       <div className="showcase-thumb-panel">
         {certImage ? (
-          <img src={certImage} alt={cert.name} className="showcase-thumb-img" />
+          <img
+            src={certImage}
+            alt={cert.name}
+            loading="lazy"
+            decoding="async"
+            className="showcase-thumb-img"
+          />
         ) : (
           <div className="credential-preview-panel">
             <div className="credential-preview-top">

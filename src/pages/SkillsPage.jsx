@@ -4,6 +4,7 @@ import PageHeader from "../components/PageHeader";
 import SkillGroup from "../components/SkillGroup";
 import Button from "../components/Button";
 import SEO from "../components/SEO";
+import NextPageNavigation from "../components/NextPageNavigation";
 
 export default function SkillsPage() {
   const { skills } = usePortfolioData();
@@ -52,6 +53,15 @@ export default function SkillsPage() {
           View Projects Portfolio →
         </Button>
       </section>
+
+      <NextPageNavigation
+        prev={{ label: "About Me", to: "/about" }}
+        next={{
+          label: "Work Experience",
+          to: "/experience",
+          description: "Review chronological industry internships and software development responsibilities."
+        }}
+      />
     </>
   );
 }

@@ -2,16 +2,25 @@ import React, { useState } from "react";
 import { Outlet, NavLink, Link, useNavigate } from "react-router-dom";
 import { useAdminAuth } from "../context/AdminAuthContext";
 import { isSupabaseConfigured } from "../lib/supabaseClient";
+import AdminGlobalSearch from "../components/AdminGlobalSearch";
+import AdminInstantJarvisModal from "../components/AdminInstantJarvisModal";
 
 export default function AdminLayout() {
   const { adminUser, logout } = useAdminAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isJarvisModalOpen, setIsJarvisModalOpen] = useState(false);
+  const [jarvisInitialQuery, setJarvisInitialQuery] = useState("");
   const isCloud = isSupabaseConfigured();
 
   const handleLogout = async () => {
     await logout();
     navigate("/admin/login");
+  };
+
+  const handleOpenJarvis = (q = "") => {
+    setJarvisInitialQuery(q);
+    setIsJarvisModalOpen(true);
   };
 
   const navGroups = [
@@ -24,80 +33,94 @@ export default function AdminLayout() {
     {
       group: "CONTENT",
       items: [
-        { label: "Home", path: "/admin/home", icon: "🏠" },
-        { label: "About / Profile", path: "/admin/profile", icon: "👤" },
+        { label: "Home Showcase", path: "/admin/home", icon: "🏠" },
+        { label: "About & Profile", path: "/admin/profile", icon: "👤" },
         { label: "Experience", path: "/admin/experience", icon: "💼" },
         { label: "Education", path: "/admin/education", icon: "🎓" },
         { label: "Skills", path: "/admin/skills", icon: "⚡" },
         { label: "Projects", path: "/admin/projects", icon: "💻" },
         { label: "Certifications", path: "/admin/certifications", icon: "📜" },
         { label: "Achievements", path: "/admin/achievements", icon: "🏆" },
-        { label: "Gallery", path: "/admin/gallery", icon: "🖼️" }
+        { label: "Gallery", path: "/admin/gallery", icon: "🖼️" },
+        { label: "Resume Document", path: "/admin/resume", icon: "📄" }
       ]
     },
     {
       group: "ASSETS",
       items: [
-        { label: "Media Library", path: "/admin/media", icon: "📁" },
-        { label: "Resume Document", path: "/admin/resume", icon: "📄" }
+        { label: "Media Library 2.0", path: "/admin/media", icon: "📁" }
       ]
     },
     {
-      group: "RECRUITER",
+      group: "TOOLS",
       items: [
-        { label: "Recruiter Mode", path: "/admin/recruiter", icon: "🎯" }
-      ]
-    },
-    {
-      group: "AI",
-      items: [
-        { label: "JARVIS Intelligence", path: "/admin/jarvis", icon: "🤖" }
-      ]
-    },
-    {
-      group: "COMMUNICATION",
-      items: [
-        { label: "Inbound Messages", path: "/admin/messages", icon: "📬" }
-      ]
-    },
-    {
-      group: "INSIGHTS",
-      items: [
-        { label: "Analytics & Telemetry", path: "/admin/analytics", icon: "📈" }
+        { label: "Site Health Audit", path: "/admin/health", icon: "🩺" },
+        { label: "SEO Manager 2.0", path: "/admin/seo", icon: "🔍" },
+        { label: "Backup & Recovery", path: "/admin/backup", icon: "💾" },
+        { label: "Version Snapshots", path: "/admin/versions", icon: "⏱️" },
+        { label: "Recruiter Portal", path: "/admin/recruiter", icon: "🎯" }
       ]
     },
     {
       group: "SYSTEM",
       items: [
-        { label: "SEO & Discoverability", path: "/admin/seo", icon: "🔍" },
-        { label: "Site Settings", path: "/admin/settings", icon: "⚙️" },
+        { label: "Inbound Messages", path: "/admin/messages", icon: "📬" },
+        { label: "Analytics & Telemetry", path: "/admin/analytics", icon: "📈" },
         { label: "Audit Logs", path: "/admin/audit", icon: "📋" },
-        { label: "Version History", path: "/admin/versions", icon: "⏱️" }
+        { label: "Site Settings", path: "/admin/settings", icon: "⚙️" }
       ]
     }
   ];
 
+
   return (
     <div className="admin-app">
-      {/* Mobile Top Header */}
-      <header className="admin-mobile-bar">
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      {/* Persistent Global Admin Header (Desktop & Mobile) */}
+      <header className="admin-top-bar">
+        <div className="admin-top-bar-left">
           <button
             type="button"
-            className="btn btn-outline btn-sm"
+            className="admin-sidebar-toggle-btn"
             onClick={() => setSidebarOpen((prev) => !prev)}
             aria-label="Toggle admin sidebar"
           >
             {sidebarOpen ? "✕" : "☰"}
           </button>
-          <span style={{ fontWeight: "700", color: "var(--text-bright)", fontSize: "14px" }}>
-            ADMIN CONTROL CENTER
-          </span>
+          <Link to="/admin" className="admin-top-brand-title" style={{ textDecoration: "none", color: "var(--text-bright)" }}>
+            AYYAJ CMS
+          </Link>
+        </div>
+        <div className="admin-top-bar-search">
+          <AdminGlobalSearch
+            isHeader={true}
+            placeholder="Search portfolio, projects, skills, certifications..."
+            onOpenJarvis={handleOpenJarvis}
+          />
         </div>
 
-        <Link to="/" target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm">
-          Live Site ↗
-        </Link>
+        <div className="admin-top-bar-actions">
+          <button
+            type="button"
+            className="admin-header-jarvis-btn"
+            onClick={() => handleOpenJarvis("")}
+            aria-label="Ask JARVIS (Portfolio Intelligence)"
+            title="Ask JARVIS (Portfolio Intelligence)"
+          >
+            <span>🤖</span>
+            <span className="jarvis-btn-label">Ask JARVIS</span>
+          </button>
+
+          <Link
+            to="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-ghost btn-sm admin-live-site-btn"
+            title="Open public website in a new tab"
+          >
+            <span>↗</span>
+            <span className="live-site-text">Live Site</span>
+          </Link>
+        </div>
       </header>
 
       <div className="admin-body">
@@ -149,7 +172,7 @@ export default function AdminLayout() {
                 )}
                 {groupObj.items.map((item) => (
                   <NavLink
-                    key={item.path}
+                    key={item.path + item.label}
                     to={item.path}
                     end={item.exact}
                     className={({ isActive }) => `admin-nav-item ${isActive ? "active" : ""}`}
@@ -191,6 +214,13 @@ export default function AdminLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Instant ASK JARVIS Intelligence Modal */}
+      <AdminInstantJarvisModal
+        isOpen={isJarvisModalOpen}
+        onClose={() => setIsJarvisModalOpen(false)}
+        initialQuery={jarvisInitialQuery}
+      />
     </div>
   );
 }

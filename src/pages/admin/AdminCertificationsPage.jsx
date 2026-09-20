@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { getCertifications, saveCertification, deleteCertification, reorderCertifications } from "../../services/dataService";
 import Button from "../../components/Button";
 import SEO from "../../components/SEO";
+import AdminBulkActionsBar from "../../components/AdminBulkActionsBar";
+import AdminContentPreviewModal from "../../components/AdminContentPreviewModal";
+import { generateUniqueTitle } from "../../utils/slugUtils";
 
 export default function AdminCertificationsPage() {
   const [list, setList] = useState([]);
+  const [savedOrderIds, setSavedOrderIds] = useState([]);
+  const [selectedCertIds, setSelectedCertIds] = useState([]);
   const [editing, setEditing] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [errorNotice, setErrorNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -13,10 +19,169 @@ export default function AdminCertificationsPage() {
   const [issuerFilter, setIssuerFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [copiedId, setCopiedId] = useState("");
+  const [draggedIdx, setDraggedIdx] = useState(null);
+
+  const isOrderDirty = useMemo(() => {
+    if (!savedOrderIds.length || savedOrderIds.length !== list.length) return false;
+    return list.some((c, idx) => c.id !== savedOrderIds[idx]);
+  }, [list, savedOrderIds]);
+
+  const handleDragStart = (e, index) => {
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e, targetIdx) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === targetIdx) return;
+    const reordered = [...list];
+    const [movedItem] = reordered.splice(draggedIdx, 1);
+    reordered.splice(targetIdx, 0, movedItem);
+    reordered.forEach((c, idx) => {
+      c.sortOrder = idx + 1;
+    });
+    setList(reordered);
+    setDraggedIdx(null);
+  };
+
+  const handleMove = (index, direction) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= list.length) return;
+    const reordered = [...list];
+    const temp = reordered[index];
+    reordered[index] = reordered[targetIdx];
+    reordered[targetIdx] = temp;
+    reordered.forEach((c, idx) => {
+      c.sortOrder = idx + 1;
+    });
+    setList(reordered);
+  };
+
+  const handleSaveOrder = async () => {
+    try {
+      setIsSaving(true);
+      setErrorNotice("");
+      const orderedIds = list.map((c) => c.id);
+      await reorderCertifications(orderedIds);
+      setSavedOrderIds(orderedIds);
+      setNotice("✓ Certification order saved successfully to Supabase.");
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      console.error("Reorder failed in cloud:", err);
+      setErrorNotice(err.message || "Failed to save order.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleResetOrder = () => {
+    if (!savedOrderIds.length) return;
+    const map = new Map(list.map((c) => [c.id, c]));
+    const restored = savedOrderIds.map((id) => map.get(id)).filter(Boolean);
+    restored.forEach((c, idx) => {
+      c.sortOrder = idx + 1;
+    });
+    setList(restored);
+    setNotice("Order reset to last saved state.");
+    setTimeout(() => setNotice(""), 2000);
+  };
+
+  const handleDuplicate = (item) => {
+    const copyName = generateUniqueTitle(item.name || item.title, list.map((x) => x.name || x.title));
+    setEditing({
+      ...item,
+      id: undefined,
+      name: copyName,
+      credentialId: item.credentialId ? `${item.credentialId}-COPY` : "",
+      skillsStr: item.skills ? item.skills.join(", ") : ""
+    });
+    setNotice(`Duplicated "${item.name}". Review and save.`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedCertIds(list.map((c) => c.id));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedCertIds([]);
+  };
+
+  const toggleSelectCert = (id) => {
+    setSelectedCertIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkPublish = async (ids) => {
+    setIsSaving(true);
+    setErrorNotice("");
+    try {
+      for (const id of ids) {
+        const item = list.find((x) => x.id === id);
+        if (item) {
+          await saveCertification({ ...item, status: "Completed", publicationStatus: "published" });
+        }
+      }
+      await loadData();
+      setSelectedCertIds([]);
+      setNotice(`✓ Successfully published ${ids.length} certifications.`);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      setErrorNotice("Bulk publish failed: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleBulkDraft = async (ids) => {
+    setIsSaving(true);
+    setErrorNotice("");
+    try {
+      for (const id of ids) {
+        const item = list.find((x) => x.id === id);
+        if (item) {
+          await saveCertification({ ...item, status: "In Progress", publicationStatus: "draft" });
+        }
+      }
+      await loadData();
+      setSelectedCertIds([]);
+      setNotice(`✓ Successfully set ${ids.length} certifications to draft.`);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      setErrorNotice("Bulk draft failed: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleBulkDelete = async (ids) => {
+    setIsSaving(true);
+    setErrorNotice("");
+    try {
+      for (const id of ids) {
+        await deleteCertification(id);
+      }
+      await loadData();
+      setSelectedCertIds([]);
+      setNotice(`✓ Successfully deleted ${ids.length} certifications.`);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      setErrorNotice("Bulk delete failed: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const loadData = async () => {
     const data = await getCertifications();
-    setList(data);
+    setList(data || []);
+    setSavedOrderIds((data || []).map((c) => c.id));
   };
 
   useEffect(() => {
@@ -85,21 +250,6 @@ export default function AdminCertificationsPage() {
     }
   };
 
-  const handleMove = async (index, direction) => {
-    const targetIdx = index + direction;
-    if (targetIdx < 0 || targetIdx >= list.length) return;
-    const reordered = [...list];
-    const temp = reordered[index];
-    reordered[index] = reordered[targetIdx];
-    reordered[targetIdx] = temp;
-    setList(reordered);
-    try {
-      await reorderCertifications(reordered.map((c) => c.id));
-    } catch (err) {
-      console.warn("Reorder failed in cloud:", err);
-    }
-  };
-
   const handleCopy = (credId) => {
     if (!credId) return;
     navigator.clipboard.writeText(credId);
@@ -137,9 +287,14 @@ export default function AdminCertificationsPage() {
           </p>
         </div>
 
-        <Button onClick={handleCreate} variant="primary" size="sm">
-          + Add Certification
-        </Button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <Button to="/certifications" target="_blank" rel="noopener noreferrer" variant="outline" size="sm">
+            Live Preview ↗
+          </Button>
+          <Button onClick={handleCreate} variant="primary" size="sm">
+            + Add Certification
+          </Button>
+        </div>
       </div>
 
       {errorNotice && (
@@ -172,6 +327,51 @@ export default function AdminCertificationsPage() {
       {notice && (
         <div style={{ padding: "10px 14px", background: "rgba(16, 185, 129, 0.12)", border: "1px solid var(--accent-emerald)", borderRadius: "var(--radius-sm)", color: "var(--accent-emerald)", fontSize: "13px", marginBottom: "20px" }}>
           {notice}
+        </div>
+      )}
+
+      {/* Unsaved Order Changes Indicator */}
+      {isOrderDirty && (
+        <div
+          role="alert"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "12px",
+            padding: "12px 18px",
+            background: "rgba(245, 158, 11, 0.15)",
+            border: "1px solid var(--accent-amber)",
+            borderRadius: "var(--radius-sm)",
+            color: "var(--accent-amber)",
+            marginBottom: "16px"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "600", fontSize: "13px" }}>
+            <span style={{ fontSize: "16px" }}>⚠️</span>
+            <span>You have unsaved certification order changes. Reordering is pending cloud sync.</span>
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              type="button"
+              onClick={handleResetOrder}
+              className="btn btn-outline btn-sm"
+              style={{ borderColor: "var(--accent-amber)", color: "var(--accent-amber)", fontSize: "12px" }}
+              disabled={isSaving}
+            >
+              Reset Order
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveOrder}
+              className="btn btn-primary btn-sm"
+              style={{ fontSize: "12px" }}
+              disabled={isSaving}
+            >
+              {isSaving ? "Saving Order..." : "Save Order"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -344,6 +544,14 @@ export default function AdminCertificationsPage() {
               <Button type="submit" variant="primary" disabled={isSaving}>
                 {isSaving ? "Saving..." : "Save Certification"}
               </Button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setIsPreviewOpen(true)}
+                style={{ borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)" }}
+              >
+                👁 Live Preview (Draft)
+              </button>
               <Button onClick={() => setEditing(null)} variant="outline">
                 Cancel
               </Button>
@@ -352,6 +560,38 @@ export default function AdminCertificationsPage() {
         </div>
       )}
 
+      {/* Select All / Counter Bar */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          margin: "16px 0 8px",
+          padding: "4px 8px",
+          background: "var(--bg-elevated)",
+          borderRadius: "var(--radius-sm)",
+          border: "1px solid var(--border-subtle)"
+        }}
+      >
+        <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--text-bright)", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={list.length > 0 && selectedCertIds.length === list.length}
+            onChange={(e) => {
+              if (e.target.checked) handleSelectAll();
+              else handleDeselectAll();
+            }}
+            style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "var(--accent-cyan)" }}
+          />
+          <span style={{ fontWeight: 600 }}>Select All ({list.length} certifications)</span>
+        </label>
+        {selectedCertIds.length > 0 && (
+          <span style={{ fontSize: "12px", color: "var(--accent-cyan)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+            {selectedCertIds.length} of {list.length} selected
+          </span>
+        )}
+      </div>
+
       {/* Cards List */}
       <div style={{ display: "grid", gap: "16px" }}>
         {filtered.length === 0 ? (
@@ -359,167 +599,225 @@ export default function AdminCertificationsPage() {
             No credentials found matching &quot;{searchQuery || issuerFilter}&quot;.
           </div>
         ) : (
-          filtered.map((item, idx) => (
-            <div key={item.id} className="card">
-              <div className="admin-cert-card-inner">
-                {/* Reorder Column */}
-                <div className="admin-cert-order-col">
-                  <button
-                    type="button"
-                    onClick={() => handleMove(idx, -1)}
-                    disabled={idx === 0}
-                    className="btn btn-ghost btn-sm"
-                    style={{ padding: "4px 8px", fontSize: "11px", lineHeight: 1 }}
-                    title="Move Up"
-                    aria-label={`Move credential #${idx + 1} up`}
-                  >
-                    ▲
-                  </button>
-                  <span style={{ fontSize: "11px", color: "var(--accent-amber)", fontWeight: "700", fontFamily: "var(--font-mono)" }}>
-                    #{String(idx + 1).padStart(2, "0")}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleMove(idx, 1)}
-                    disabled={idx === filtered.length - 1}
-                    className="btn btn-ghost btn-sm"
-                    style={{ padding: "4px 8px", fontSize: "11px", lineHeight: 1 }}
-                    title="Move Down"
-                    aria-label={`Move credential #${idx + 1} down`}
-                  >
-                    ▼
-                  </button>
-                </div>
-
-                {/* Thumbnail / Media Column */}
-                <div
-                  style={{
-                    width: "68px",
-                    height: "52px",
-                    borderRadius: "4px",
-                    overflow: "hidden",
-                    background: "var(--bg-base)",
-                    border: "1px solid var(--border-subtle)",
-                    flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}
-                  title={item.name}
-                >
-                  {item.image || (item.certificateUrl && /\.(png|jpe?g|webp|gif|svg)$/i.test(item.certificateUrl)) ? (
-                    <img
-                      src={item.image || item.certificateUrl}
-                      alt={item.name}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  ) : (
-                    <span style={{ fontSize: "20px", lineHeight: 1 }}>📜</span>
-                  )}
-                </div>
-
-                {/* Content Column */}
-                <div className="admin-cert-content-col">
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
-                    <h3 style={{ fontSize: "15px", color: "var(--text-bright)", margin: 0 }}>{item.name}</h3>
-                    <span
-                      style={{
-                        fontSize: "10.5px",
-                        fontWeight: "700",
-                        padding: "2px 6px",
-                        borderRadius: "3px",
-                        background: (item.status || "Completed").toLowerCase().includes("progress") ? "rgba(245, 158, 11, 0.15)" : "rgba(16, 185, 129, 0.15)",
-                        color: (item.status || "Completed").toLowerCase().includes("progress") ? "var(--accent-amber)" : "var(--accent-emerald)",
-                        fontFamily: "var(--font-mono)"
-                      }}
-                    >
-                      {item.status || "Completed"}
-                    </span>
-                  </div>
-
-                  <div style={{ color: "var(--accent-amber)", fontSize: "12.5px", marginBottom: "4px" }}>
-                    {item.issuer} · {item.date}
-                  </div>
-
-                  {item.description && (
-                    <p style={{ color: "var(--text-muted)", fontSize: "12.5px", margin: "4px 0 6px", maxWidth: "68ch", lineHeight: "1.5" }}>
-                      {item.description}
-                    </p>
-                  )}
-
-                  {item.skills && (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "6px" }}>
-                      {item.skills.map((s) => (
-                        <span key={s} className="micro-tag">
-                          {s}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Safe Wrapping Credential ID */}
-                  {item.credentialId && (
-                    <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                      <span style={{ fontSize: "10.5px", color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
-                        CREDENTIAL ID:
+          filtered.map((item, idx) => {
+            const isSelected = selectedCertIds.includes(item.id);
+            return (
+              <div
+                key={item.id || idx}
+                className={`card admin-cert-card admin-card ${draggedIdx === idx ? "is-dragging" : ""}`}
+                draggable={!searchQuery && issuerFilter === "All" && statusFilter === "All"}
+                onDragStart={(e) => handleDragStart(e, idx)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, idx)}
+                style={{
+                  cursor: !searchQuery && issuerFilter === "All" && statusFilter === "All" ? "grab" : "default",
+                  opacity: draggedIdx === idx ? 0.5 : 1,
+                  border: isSelected ? "1px solid var(--accent-cyan)" : undefined,
+                  background: isSelected ? "rgba(56, 189, 248, 0.05)" : undefined,
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease"
+                }}
+              >
+                <div className="admin-cert-card-inner">
+                  {/* Compact Header Bar: Checkbox + Reorder Controls */}
+                  <div className="admin-card-header-bar">
+                    <label className="admin-card-select-wrap">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectCert(item.id)}
+                        aria-label={`Select credential ${item.name}`}
+                        className="admin-card-checkbox"
+                      />
+                      <span className="admin-card-index-badge">
+                        #{String(idx + 1).padStart(2, "0")}
                       </span>
-                      <code
-                        style={{
-                          fontSize: "11px",
-                          color: "var(--accent-cyan)",
-                          background: "var(--bg-base)",
-                          padding: "2px 8px",
-                          borderRadius: "4px",
-                          border: "1px solid var(--border-subtle)",
-                          wordBreak: "break-all",
-                          maxWidth: "100%"
-                        }}
-                      >
-                        {item.credentialId}
-                      </code>
+                    </label>
+
+                    <div className="admin-card-reorder-wrap">
                       <button
                         type="button"
-                        onClick={() => handleCopy(item.credentialId)}
-                        className="btn btn-ghost btn-sm"
-                        style={{ fontSize: "11px", padding: "2px 8px", height: "auto", minHeight: "unset" }}
-                        title="Copy Credential ID"
-                        aria-label="Copy Credential ID"
+                        onClick={() => handleMove(idx, -1)}
+                        disabled={idx === 0}
+                        className="btn btn-ghost btn-sm admin-card-reorder-btn"
+                        title="Move Up"
+                        aria-label={`Move credential #${idx + 1} up`}
                       >
-                        {copiedId === item.credentialId ? "Copied ✓" : "Copy 📋"}
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleMove(idx, 1)}
+                        disabled={idx === filtered.length - 1}
+                        className="btn btn-ghost btn-sm admin-card-reorder-btn"
+                        title="Move Down"
+                        aria-label={`Move credential #${idx + 1} down`}
+                      >
+                        ↓
                       </button>
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                {/* Actions Column */}
-                <div className="admin-cert-actions-col">
-                  <Button onClick={() => handleEdit(item)} variant="outline" size="sm">
-                    Edit ✎
-                  </Button>
-                  {item.verificationUrl && (
-                    <a
-                      href={item.verificationUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-ghost btn-sm"
-                    >
-                      Verify ↗
-                    </a>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(item.id, item.name)}
-                    className="btn btn-ghost btn-sm"
-                    style={{ color: "#f87171" }}
+                  {/* Thumbnail / Media Column */}
+                  <div
+                    className="admin-cert-thumb-col"
+                    style={{
+                      width: "56px",
+                      height: "56px",
+                      borderRadius: "6px",
+                      overflow: "hidden",
+                      background: "var(--bg-base)",
+                      border: "1px solid var(--border-subtle)",
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center"
+                    }}
+                    title={item.name}
                   >
-                    Delete ✕
-                  </button>
+                    {item.image || (item.certificateUrl && /\.(png|jpe?g|webp|gif|svg)$/i.test(item.certificateUrl)) ? (
+                      <img
+                        src={item.image || item.certificateUrl}
+                        alt={item.name}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: "20px", lineHeight: 1 }}>📜</span>
+                    )}
+                  </div>
+
+                  {/* Content Column */}
+                  <div className="admin-cert-content-col">
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                      <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-bright)", margin: 0, wordBreak: "break-word" }}>{item.name}</h3>
+                      <span
+                        className="admin-status-pill"
+                        style={{
+                          fontSize: "10.5px",
+                          fontWeight: "700",
+                          padding: "2px 6px",
+                          borderRadius: "3px",
+                          background: (item.status || "Completed").toLowerCase().includes("progress") ? "rgba(245, 158, 11, 0.15)" : "rgba(16, 185, 129, 0.15)",
+                          color: (item.status || "Completed").toLowerCase().includes("progress") ? "var(--accent-amber)" : "var(--accent-emerald)",
+                          fontFamily: "var(--font-mono)",
+                          whiteSpace: "nowrap",
+                          wordBreak: "normal",
+                          overflowWrap: "normal",
+                          flexShrink: 0,
+                          display: "inline-flex"
+                        }}
+                      >
+                        {item.status || "Completed"}
+                      </span>
+                    </div>
+
+                    <div style={{ color: "var(--accent-amber)", fontSize: "12.5px", marginBottom: "4px", fontWeight: "600" }}>
+                      {item.issuer} · {item.date}
+                    </div>
+
+                    {item.description && (
+                      <p style={{ color: "var(--text-muted)", fontSize: "12.5px", margin: "4px 0 6px", maxWidth: "68ch", lineHeight: "1.5", wordBreak: "break-word" }}>
+                        {item.description}
+                      </p>
+                    )}
+
+                    {item.skills && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "6px" }}>
+                        {item.skills.map((s) => (
+                          <span key={s} className="micro-tag">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Credential ID */}
+                    {item.credentialId && (
+                      <div style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: "10.5px", color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>
+                          CREDENTIAL ID:
+                        </span>
+                        <code
+                          style={{
+                            fontSize: "11px",
+                            color: "var(--accent-cyan)",
+                            background: "var(--bg-base)",
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                            border: "1px solid var(--border-subtle)",
+                            wordBreak: "break-all",
+                            maxWidth: "100%"
+                          }}
+                        >
+                          {item.credentialId}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(item.credentialId)}
+                          className="btn btn-ghost btn-sm"
+                          style={{ fontSize: "11px", padding: "2px 8px", height: "auto", minHeight: "unset" }}
+                          title="Copy Credential ID"
+                          aria-label="Copy Credential ID"
+                        >
+                          {copiedId === item.credentialId ? "Copied ✓" : "Copy 📋"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions Column */}
+                  <div className="admin-cert-actions-col admin-card-actions">
+                    <Button onClick={() => handleEdit(item)} variant="outline" size="sm" className="admin-action-btn">
+                      Edit ✎
+                    </Button>
+                    <Button onClick={() => handleDuplicate(item)} variant="outline" size="sm" className="admin-action-btn">
+                      Duplicate ⎘
+                    </Button>
+                    {item.verificationUrl && (
+                      <a
+                        href={item.verificationUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-ghost btn-sm admin-action-btn"
+                      >
+                        Verify ↗
+                      </a>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(item.id, item.name)}
+                      className="btn btn-ghost btn-sm admin-action-btn admin-delete-btn"
+                      style={{ color: "#f87171" }}
+                    >
+                      Delete ✕
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+
+      {/* Floating Bulk Actions Toolbar */}
+      <AdminBulkActionsBar
+        selectedIds={selectedCertIds}
+        totalCount={list.length}
+        onSelectAll={handleSelectAll}
+        onDeselectAll={handleDeselectAll}
+        onBulkPublish={handleBulkPublish}
+        onBulkDraft={handleBulkDraft}
+        onBulkDelete={handleBulkDelete}
+        itemTypeLabel="certifications"
+        selectedItems={list.filter((c) => selectedCertIds.includes(c.id))}
+      />
+
+      {/* Live Content Preview Modal */}
+      <AdminContentPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        type="certification"
+        data={editing}
+      />
     </div>
   );
 }

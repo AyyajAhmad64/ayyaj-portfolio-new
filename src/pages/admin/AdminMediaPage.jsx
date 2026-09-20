@@ -7,7 +7,14 @@ import Button from "../../components/Button";
 import SEO from "../../components/SEO";
 
 export default function AdminMediaPage() {
-  const { refresh } = usePortfolioData();
+  const {
+    refresh,
+    projects = [],
+    certifications = [],
+    achievements = [],
+    gallery = [],
+    profile = {}
+  } = usePortfolioData();
   const [mediaList, setMediaList] = useState([]);
   const [notice, setNotice] = useState("");
   const [errorNotice, setErrorNotice] = useState("");
@@ -17,6 +24,12 @@ export default function AdminMediaPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
   const [previewItem, setPreviewItem] = useState(null);
+
+  // Modals state
+  const [inspectedRefAsset, setInspectedRefAsset] = useState(null);
+  const [deleteTargetAsset, setDeleteTargetAsset] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const [newItem, setNewItem] = useState({
     name: "",
     url: "",
@@ -25,6 +38,54 @@ export default function AdminMediaPage() {
     size: ""
   });
   const [showAddForm, setShowAddForm] = useState(false);
+
+  const getMediaReferences = (item) => {
+    if (!item?.url) return [];
+    const url = item.url;
+    const refs = [];
+
+    // Check Projects
+    projects.forEach((p) => {
+      if (p.thumbnail === url) {
+        refs.push({ type: "Project Thumbnail", title: p.title, link: "/admin/projects" });
+      }
+      if (Array.isArray(p.images) && p.images.includes(url)) {
+        refs.push({ type: "Project Gallery", title: p.title, link: "/admin/projects" });
+      }
+    });
+
+    // Check Certifications
+    certifications.forEach((c) => {
+      if (c.image === url || c.certificateUrl === url) {
+        refs.push({ type: "Certification Credential", title: c.name, link: "/admin/certifications" });
+      }
+    });
+
+    // Check Achievements
+    achievements.forEach((a) => {
+      if (a.image === url) {
+        refs.push({ type: "Achievement Milestone", title: a.title, link: "/admin/achievements" });
+      }
+    });
+
+    // Check Gallery
+    gallery.forEach((g) => {
+      if (g.src === url || g.thumbnail === url) {
+        refs.push({ type: "Visual Gallery Item", title: g.title, link: "/admin/gallery" });
+      }
+    });
+
+    // Check Profile
+    if (profile?.avatar === url) {
+      refs.push({ type: "Profile Avatar", title: profile.name || "Ayyaj Shaikh", link: "/admin/profile" });
+    }
+    const resumeUrl = profile?.snapshot?.resume?.pdfUrl || profile?.resumeUrl;
+    if (resumeUrl === url) {
+      refs.push({ type: "Resume Document", title: "PDF Resume", link: "/admin/resume" });
+    }
+
+    return refs;
+  };
 
   const loadMedia = async () => {
     const list = await getMedia();
@@ -41,29 +102,35 @@ export default function AdminMediaPage() {
       const matchesSearch =
         !searchQuery ||
         (item.name && item.name.toLowerCase().includes(q)) ||
-        (item.url && item.url.toLowerCase().includes(q));
+        (item.url && item.url.toLowerCase().includes(q)) ||
+        (item.type && item.type.toLowerCase().includes(q));
 
       const isImg = item.type?.startsWith("image") || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(item.url);
       const isDoc = item.type === "application/pdf" || /\.pdf$/i.test(item.url);
+      const refs = getMediaReferences(item);
+      const isReferenced = refs.length > 0;
 
-      const matchesType =
-        typeFilter === "All" ||
-        (typeFilter === "images" && isImg) ||
-        (typeFilter === "documents" && isDoc);
+      let matchesType = true;
+      if (typeFilter === "images") matchesType = isImg;
+      else if (typeFilter === "documents") matchesType = isDoc;
+      else if (typeFilter === "in-use") matchesType = isReferenced;
+      else if (typeFilter === "unused") matchesType = !isReferenced;
 
       return matchesSearch && matchesType;
     });
-  }, [mediaList, searchQuery, typeFilter]);
+  }, [mediaList, searchQuery, typeFilter, projects, certifications, achievements, gallery, profile]);
 
   const handleCopyUrl = (item) => {
     navigator.clipboard.writeText(item.url);
     setCopiedId(item.id);
-    setNotice(`Copied "${item.url}" to clipboard!`);
+    setNotice(`✓ Copied URL for "${item.name}" to clipboard.`);
     setTimeout(() => {
       setCopiedId(null);
       setNotice("");
     }, 2500);
   };
+
+
 
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -133,38 +200,47 @@ export default function AdminMediaPage() {
     }
   };
 
-  const handleDelete = async (item) => {
-    if (window.confirm(`Delete media asset "${item.name}"?`)) {
-      try {
-        setErrorNotice("");
-        await deleteMediaItem(item.id, item.storagePath);
-        await loadMedia();
-        if (typeof refresh === "function") {
-          try {
-            await refresh();
-          } catch {
-            // non-blocking
-          }
+  const executeDelete = async () => {
+    if (!deleteTargetAsset) return;
+    try {
+      setIsDeleting(true);
+      setErrorNotice("");
+      await deleteMediaItem(deleteTargetAsset.id, deleteTargetAsset.storagePath);
+      await loadMedia();
+      if (typeof refresh === "function") {
+        try {
+          await refresh();
+        } catch {
+          // non-blocking
         }
-        setNotice(`Media asset "${item.name}" removed.`);
-        setTimeout(() => setNotice(""), 3000);
-      } catch (err) {
-        console.error("Failed to delete media item:", err);
-        setErrorNotice(err.message || "Cloud deletion failed. Media asset was not deleted.");
       }
+      setNotice(`Media asset "${deleteTargetAsset.name}" deleted from library.`);
+      setDeleteTargetAsset(null);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      console.error("Failed to delete media item:", err);
+      setErrorNotice(err.message || "Cloud deletion failed. Media asset was not deleted.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
+  const unusedCount = useMemo(() => {
+    return mediaList.filter((m) => getMediaReferences(m).length === 0).length;
+  }, [mediaList, projects, certifications, achievements, gallery, profile]);
+
   return (
     <div className="admin-page">
-      <SEO title="Media Library — Admin CMS" description="Manage static assets and media files." />
+      <SEO title="Media Library 2.0 — Admin CMS" description="Manage static assets and media files." />
+
+
 
       <div className="admin-page-header">
         <div>
           <span className="section-micro-label">STORAGE &amp; ASSETS</span>
-          <h1 className="admin-page-title">Media Library</h1>
+          <h1 className="admin-page-title">Media Library 2.0</h1>
           <p className="admin-page-desc">
-            Store and manage assets in Supabase Cloud Storage (portfolio-media &amp; resume buckets). Upload photography, project screenshots, documents, and obtain instant public URLs.
+            Store and manage assets in Supabase Cloud Storage. Track usage references, inspect orphaned files, and copy public URLs.
           </p>
         </div>
 
@@ -198,6 +274,7 @@ export default function AdminMediaPage() {
           </button>
         </div>
       )}
+
 
       {notice && (
         <div
@@ -285,7 +362,7 @@ export default function AdminMediaPage() {
         </div>
       )}
 
-      {/* Search and Filters */}
+      {/* Search and Filters Bar */}
       <div
         className="card"
         style={{
@@ -296,14 +373,15 @@ export default function AdminMediaPage() {
           alignItems: "center",
           justifyContent: "space-between",
           marginBottom: "20px",
-          padding: "12px 16px"
+          padding: "12px 12px",
+          boxSizing: "border-box"
         }}
       >
-        <div style={{ display: "flex", gap: "10px", flex: "1 1 240px", minWidth: 0 }}>
+        <div style={{ display: "flex", gap: "10px", flex: "1 1 min(100%, 200px)", minWidth: 0 }}>
           <input
             type="text"
             className="admin-input"
-            placeholder="🔍 Search filename or URL..."
+            placeholder="🔍 Search filename, URL, or type..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ width: "100%" }}
@@ -319,15 +397,21 @@ export default function AdminMediaPage() {
           <span style={{ fontSize: "12px", color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
             Filter:
           </span>
-          {["All", "images", "documents"].map((type) => (
+          {[
+            { id: "All", label: "All" },
+            { id: "images", label: "Images" },
+            { id: "documents", label: "Documents" },
+            { id: "in-use", label: "In Use" },
+            { id: "unused", label: `Unused (${unusedCount})` }
+          ].map((tab) => (
             <button
-              key={type}
+              key={tab.id}
               type="button"
-              className={`btn btn-sm ${typeFilter === type ? "btn-primary" : "btn-outline"}`}
-              onClick={() => setTypeFilter(type)}
-              style={{ textTransform: "capitalize", fontSize: "11px", padding: "4px 10px" }}
+              className={`btn btn-sm ${typeFilter === tab.id ? "btn-primary" : "btn-outline"}`}
+              onClick={() => setTypeFilter(tab.id)}
+              style={{ fontSize: "11px", padding: "4px 10px" }}
             >
-              {type === "All" ? "All" : type === "images" ? "Images" : "Documents"}
+              {tab.label}
             </button>
           ))}
           <span style={{ fontSize: "12px", color: "var(--text-dim)", fontFamily: "var(--font-mono)", marginLeft: "8px" }}>
@@ -335,6 +419,7 @@ export default function AdminMediaPage() {
           </span>
         </div>
       </div>
+
 
       {/* Media Grid */}
       {filteredMedia.length === 0 ? (
@@ -362,6 +447,9 @@ export default function AdminMediaPage() {
         <div className="admin-media-grid">
           {filteredMedia.map((item) => {
             const isImg = item.type?.startsWith("image/") || item.url?.match(/\.(jpg|jpeg|png|webp|gif|svg)$/i);
+            const refs = getMediaReferences(item);
+            const isReferenced = refs.length > 0;
+
             return (
               <div key={item.id} className="card" style={{ display: "flex", flexDirection: "column", padding: "16px" }}>
                 <div
@@ -430,14 +518,39 @@ export default function AdminMediaPage() {
                   >
                     {item.url}
                   </div>
+
+                  {/* Reference Usage Badge (Interactive) */}
+                  <div
+                    onClick={() => isReferenced && setInspectedRefAsset({ item, refs })}
+                    style={{
+                      fontSize: "11px",
+                      padding: "5px 9px",
+                      borderRadius: "4px",
+                      background: isReferenced ? "rgba(16, 185, 129, 0.12)" : "rgba(245, 158, 11, 0.1)",
+                      color: isReferenced ? "var(--accent-emerald)" : "var(--accent-amber)",
+                      border: isReferenced ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(245, 158, 11, 0.3)",
+                      marginBottom: "12px",
+                      fontFamily: "var(--font-mono)",
+                      cursor: isReferenced ? "pointer" : "default",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center"
+                    }}
+                    title={isReferenced ? "Click to view referencing content" : "Orphaned asset"}
+                  >
+                    <span>
+                      {isReferenced ? `✓ In Use (${refs.length} ref${refs.length > 1 ? "s" : ""})` : "Unused / Orphaned"}
+                    </span>
+                    {isReferenced && <span style={{ fontSize: "10px", opacity: 0.8 }}>Details 🔍</span>}
+                  </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "auto", minWidth: 0 }}>
                   <button
                     type="button"
                     onClick={() => handleCopyUrl(item)}
                     className="btn btn-outline btn-sm"
-                    style={{ flex: 1 }}
+                    style={{ flex: "1 1 auto" }}
                   >
                     {copiedId === item.id ? "✓ Copied" : "Copy URL"}
                   </button>
@@ -459,7 +572,7 @@ export default function AdminMediaPage() {
                   </a>
                   <button
                     type="button"
-                    onClick={() => handleDelete(item)}
+                    onClick={() => setDeleteTargetAsset({ item, refs })}
                     className="btn btn-ghost btn-sm"
                     style={{ color: "#f87171" }}
                     aria-label={`Delete ${item.name}`}
@@ -468,12 +581,186 @@ export default function AdminMediaPage() {
                   </button>
                 </div>
               </div>
+
             );
           })}
         </div>
       )}
 
       {/* Preview Modal */}
+      {/* Reference Inspection Modal */}
+      {inspectedRefAsset && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px"
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: "500px",
+              width: "100%",
+              maxHeight: "85vh",
+              overflowY: "auto",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+              border: "1px solid var(--border-strong)"
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "20px" }}>🔗</span>
+                <h3 style={{ fontSize: "16px", color: "var(--text-bright)", margin: 0 }}>
+                  Asset References ({inspectedRefAsset.refs.length})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectedRefAsset(null)}
+                className="btn btn-ghost btn-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ fontSize: "12.5px", color: "var(--text-muted)", marginBottom: "16px" }}>
+              The asset <strong>{inspectedRefAsset.item.name}</strong> is currently utilized in the following portfolio content:
+            </div>
+
+            <div style={{ display: "grid", gap: "8px", marginBottom: "20px" }}>
+              {inspectedRefAsset.refs.map((r, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: "10px 12px",
+                    background: "var(--bg-base)",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border-subtle)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}
+                >
+                  <div>
+                    <span style={{ fontSize: "10.5px", color: "var(--accent-cyan)", textTransform: "uppercase", fontWeight: 700, display: "block" }}>
+                      {r.type}
+                    </span>
+                    <span style={{ fontSize: "13px", color: "var(--text-bright)", fontWeight: 600 }}>
+                      {r.title}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <Button onClick={() => setInspectedRefAsset(null)} variant="outline" size="sm">
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Safe Delete Confirmation Modal */}
+      {deleteTargetAsset && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px"
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: "480px",
+              width: "100%",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+              border: "1px solid var(--accent-rose)"
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "20px" }}>🗑️</span>
+                <h3 style={{ fontSize: "16px", color: "var(--accent-rose)", margin: 0 }}>
+                  Confirm Media Deletion
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteTargetAsset(null)}
+                className="btn btn-ghost btn-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: "13px", color: "var(--text-bright)", margin: "0 0 14px" }}>
+              Delete asset: <strong>{deleteTargetAsset.item.name}</strong>?
+            </p>
+
+            {deleteTargetAsset.refs.length > 0 ? (
+              <div
+                style={{
+                  background: "rgba(239, 68, 68, 0.12)",
+                  border: "1px solid var(--accent-rose)",
+                  padding: "12px",
+                  borderRadius: "var(--radius-sm)",
+                  marginBottom: "16px"
+                }}
+              >
+                <div style={{ fontWeight: 700, color: "var(--accent-rose)", fontSize: "12.5px", marginBottom: "6px" }}>
+                  ⚠️ DANGER: ACTIVE REFERENCES DETECTED!
+                </div>
+                <div style={{ fontSize: "12px", color: "#fca5a5", lineHeight: 1.4 }}>
+                  This asset is currently in use by <strong>{deleteTargetAsset.refs.length}</strong> portfolio item(s):
+                  <ul style={{ margin: "6px 0 0", paddingLeft: "18px" }}>
+                    {deleteTargetAsset.refs.map((r, i) => (
+                      <li key={i}>{r.type}: {r.title}</li>
+                    ))}
+                  </ul>
+                  Deleting this asset will cause broken images or missing documents on your live website.
+                </div>
+              </div>
+            ) : (
+              <p style={{ fontSize: "12.5px", color: "var(--text-dim)", margin: "0 0 16px" }}>
+                This asset is not currently referenced anywhere in your portfolio content and can be safely deleted.
+              </p>
+            )}
+
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+              <Button onClick={() => setDeleteTargetAsset(null)} variant="outline" size="sm" disabled={isDeleting}>
+                Cancel
+              </Button>
+              <button
+                type="button"
+                onClick={executeDelete}
+                className="btn btn-primary btn-sm"
+                style={{ background: "var(--accent-rose)", borderColor: "var(--accent-rose)" }}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Permanently Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Asset Preview Modal */}
       {previewItem && (
         <div
           role="dialog"

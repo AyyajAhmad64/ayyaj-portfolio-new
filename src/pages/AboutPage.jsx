@@ -4,6 +4,7 @@ import PageHeader from "../components/PageHeader";
 import DeveloperSnapshot from "../components/DeveloperSnapshot";
 import Button from "../components/Button";
 import SEO from "../components/SEO";
+import NextPageNavigation from "../components/NextPageNavigation";
 import { resolveAboutContent } from "../utils/contentDefaults";
 
 export default function AboutPage() {
@@ -148,7 +149,7 @@ export default function AboutPage() {
 
       {/* Relevant Navigation CTAs */}
       <section aria-label="Explore Portfolio Sections">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: "16px", width: "100%", minWidth: 0, boxSizing: "border-box" }}>
           <div className="card">
             <h4 style={{ fontSize: "14.5px", color: "var(--text-bright)", marginBottom: "6px" }}>
               Engineering Projects
@@ -198,6 +199,15 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
+
+      <NextPageNavigation
+        prev={{ label: "Home", to: "/" }}
+        next={{
+          label: "Technical Skills",
+          to: "/skills",
+          description: "Explore my categorized technical competencies, frameworks, and proficiencies."
+        }}
+      />
     </>
   );
 }

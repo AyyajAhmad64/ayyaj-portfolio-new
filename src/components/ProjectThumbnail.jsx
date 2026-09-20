@@ -17,6 +17,7 @@ export default function ProjectThumbnail({ project, className = "" }) {
           src={src}
           alt={project?.title || "Project Preview"}
           loading="lazy"
+          decoding="async"
           className="project-thumbnail-img"
           onError={() => setImgError(true)}
         />

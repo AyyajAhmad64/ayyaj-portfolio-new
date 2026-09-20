@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { getSettings, updateSettings, resetToDefaults } from "../../services/dataService";
 import { useAdminAuth } from "../../context/AdminAuthContext";
+import { usePortfolioData } from "../../context/PortfolioDataContext";
+import { isValidHexColor, applyThemeColors } from "../../utils/themeUtils";
 import Button from "../../components/Button";
 import SEO from "../../components/SEO";
 
 export default function AdminSettingsPage() {
   const { adminUser, logout } = useAdminAuth();
+  const { refresh } = usePortfolioData();
   const [settings, setSettings] = useState(null);
   const [siteTitle, setSiteTitle] = useState("");
   const [publicLocation, setPublicLocation] = useState("Pune, Maharashtra, India");
@@ -26,17 +29,41 @@ export default function AdminSettingsPage() {
       setPublicLocation(s?.publicLocation || "Pune, Maharashtra, India");
       setEnableRecruiterMode(s?.enableRecruiterMode ?? true);
       setShowAvailabilityBadge(s?.showAvailabilityBadge ?? true);
-      setPrimaryAccent(s?.primaryAccent || "#38bdf8");
-      setSecondaryAccent(s?.secondaryAccent || "#f59e0b");
+      const pColor = s?.primaryAccent || "#38bdf8";
+      const sColor = s?.secondaryAccent || "#f59e0b";
+      setPrimaryAccent(pColor);
+      setSecondaryAccent(sColor);
+      applyThemeColors(pColor, sColor);
     }
     load();
   }, []);
+
+  const handleColorChange = (type, val) => {
+    if (type === "primary") {
+      setPrimaryAccent(val);
+      if (isValidHexColor(val)) {
+        applyThemeColors(val, secondaryAccent);
+      }
+    } else {
+      setSecondaryAccent(val);
+      if (isValidHexColor(val)) {
+        applyThemeColors(primaryAccent, val);
+      }
+    }
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
     try {
       setIsSaving(true);
       setErrorNotice("");
+
+      if (!isValidHexColor(primaryAccent)) {
+        throw new Error(`Primary accent "${primaryAccent}" is not a valid hex color code (e.g. #38bdf8).`);
+      }
+      if (!isValidHexColor(secondaryAccent)) {
+        throw new Error(`Secondary accent "${secondaryAccent}" is not a valid hex color code (e.g. #f59e0b).`);
+      }
 
       await updateSettings({
         siteTitle,
@@ -47,8 +74,11 @@ export default function AdminSettingsPage() {
         secondaryAccent
       });
 
-      setNotice("Global system settings updated successfully in Supabase.");
-      setTimeout(() => setNotice(""), 3000);
+      applyThemeColors(primaryAccent, secondaryAccent);
+      if (refresh) await refresh();
+
+      setNotice("✓ Global system settings and theme colors updated successfully in Supabase.");
+      setTimeout(() => setNotice(""), 3500);
     } catch (err) {
       console.error("Failed to update settings:", err);
       setErrorNotice(err.message || "Cloud save failed. Your changes were not saved.");
@@ -166,41 +196,124 @@ export default function AdminSettingsPage() {
 
           <div className="admin-form-grid-2">
             <div>
-              <label className="admin-label">PRIMARY ACCENT COLOR (CYAN)</label>
+              <label className="admin-label">PRIMARY ACCENT COLOR</label>
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <input
                   type="color"
                   value={primaryAccent}
-                  onChange={(e) => setPrimaryAccent(e.target.value)}
+                  onChange={(e) => handleColorChange("primary", e.target.value)}
                   style={{ width: "40px", height: "36px", borderRadius: "4px", border: "1px solid var(--border-subtle)", background: "transparent", cursor: "pointer" }}
                 />
                 <input
                   type="text"
                   value={primaryAccent}
-                  onChange={(e) => setPrimaryAccent(e.target.value)}
+                  onChange={(e) => handleColorChange("primary", e.target.value)}
                   className="admin-input"
+                  placeholder="#38bdf8"
                   style={{ fontFamily: "var(--font-mono)" }}
                 />
               </div>
+              <span style={{ fontSize: "11px", color: isValidHexColor(primaryAccent) ? "var(--accent-emerald)" : "#f87171", display: "block", marginTop: "4px" }}>
+                {isValidHexColor(primaryAccent) ? "✓ Valid hex format" : "✕ Must be a valid hex code (e.g. #38bdf8)"}
+              </span>
             </div>
 
             <div>
-              <label className="admin-label">SECONDARY ACCENT COLOR (AMBER)</label>
+              <label className="admin-label">SECONDARY ACCENT COLOR</label>
               <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <input
                   type="color"
                   value={secondaryAccent}
-                  onChange={(e) => setSecondaryAccent(e.target.value)}
+                  onChange={(e) => handleColorChange("secondary", e.target.value)}
                   style={{ width: "40px", height: "36px", borderRadius: "4px", border: "1px solid var(--border-subtle)", background: "transparent", cursor: "pointer" }}
                 />
                 <input
                   type="text"
                   value={secondaryAccent}
-                  onChange={(e) => setSecondaryAccent(e.target.value)}
+                  onChange={(e) => handleColorChange("secondary", e.target.value)}
                   className="admin-input"
+                  placeholder="#f59e0b"
                   style={{ fontFamily: "var(--font-mono)" }}
                 />
               </div>
+              <span style={{ fontSize: "11px", color: isValidHexColor(secondaryAccent) ? "var(--accent-emerald)" : "#f87171", display: "block", marginTop: "4px" }}>
+                {isValidHexColor(secondaryAccent) ? "✓ Valid hex format" : "✕ Must be a valid hex code (e.g. #f59e0b)"}
+              </span>
+            </div>
+          </div>
+
+          {/* Live Theme Preview Box */}
+          <div
+            style={{
+              padding: "16px",
+              background: "rgba(15, 23, 42, 0.6)",
+              border: "1px solid var(--border-subtle)",
+              borderRadius: "var(--radius-sm)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px"
+            }}
+          >
+            <span style={{ fontSize: "11px", fontWeight: "700", color: "var(--text-dim)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Live Theme Palette Preview
+            </span>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+              <button
+                type="button"
+                style={{
+                  background: isValidHexColor(primaryAccent) ? primaryAccent : "#38bdf8",
+                  color: "#090d14",
+                  border: `1px solid ${isValidHexColor(primaryAccent) ? primaryAccent : "#38bdf8"}`,
+                  borderRadius: "var(--radius-sm)",
+                  padding: "6px 14px",
+                  fontWeight: "700",
+                  fontSize: "12px",
+                  cursor: "default"
+                }}
+              >
+                Primary Accent Button
+              </button>
+              <button
+                type="button"
+                style={{
+                  background: "transparent",
+                  color: isValidHexColor(secondaryAccent) ? secondaryAccent : "#f59e0b",
+                  border: `1px solid ${isValidHexColor(secondaryAccent) ? secondaryAccent : "#f59e0b"}`,
+                  borderRadius: "var(--radius-sm)",
+                  padding: "6px 14px",
+                  fontWeight: "700",
+                  fontSize: "12px",
+                  cursor: "default"
+                }}
+              >
+                Secondary Accent Button
+              </button>
+              <span
+                style={{
+                  fontSize: "11px",
+                  padding: "3px 8px",
+                  borderRadius: "9999px",
+                  background: isValidHexColor(primaryAccent) ? primaryAccent + "22" : "rgba(56, 189, 248, 0.15)",
+                  color: isValidHexColor(primaryAccent) ? primaryAccent : "#38bdf8",
+                  border: `1px solid ${isValidHexColor(primaryAccent) ? primaryAccent : "#38bdf8"}`,
+                  fontWeight: "600"
+                }}
+              >
+                ● Active Badge
+              </span>
+              <span
+                style={{
+                  fontSize: "11px",
+                  padding: "3px 8px",
+                  borderRadius: "9999px",
+                  background: isValidHexColor(secondaryAccent) ? secondaryAccent + "22" : "rgba(245, 158, 11, 0.15)",
+                  color: isValidHexColor(secondaryAccent) ? secondaryAccent : "#f59e0b",
+                  border: `1px solid ${isValidHexColor(secondaryAccent) ? secondaryAccent : "#f59e0b"}`,
+                  fontWeight: "600"
+                }}
+              >
+                ★ Curated Highlight
+              </span>
             </div>
           </div>
 

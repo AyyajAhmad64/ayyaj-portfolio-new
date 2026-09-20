@@ -33,6 +33,8 @@ import { galleryData as staticGallery } from "../data/gallery.js";
 
 import { isSupabaseConfigured } from "../lib/supabaseClient.js";
 import * as supabaseService from "../services/supabaseService.js";
+import { defaultFeaturedItems } from "../components/FeaturedSection.jsx";
+import { applyThemeColors } from "../utils/themeUtils.js";
 
 // ── Mutations still go through dataService for localStorage cache write-through ──
 import {
@@ -78,7 +80,7 @@ const buildDefaultStore = () => ({
     secondaryAccent: "#f59e0b",
     publicLocation: "Hinjawadi, Pune, Maharashtra, India",
     showAvailabilityBadge: true,
-    featuredItems: []
+    featuredItems: defaultFeaturedItems
   },
   media: []
 });
@@ -101,6 +103,10 @@ export function PortfolioDataProvider({ children }) {
 
     setLoading(true);
     setError(null);
+    if (typeof window !== "undefined") {
+      window.__PORTFOLIO_LOADING__ = true;
+      window.__PORTFOLIO_CLOUD_LOADED__ = false;
+    }
 
     try {
       const [
@@ -161,15 +167,44 @@ export function PortfolioDataProvider({ children }) {
           next.settings = { ...prev.settings, ...cloudSettings.value };
         }
 
+        // Reconcile featuredItems: preserve saved cloud array from settings or profile snapshot
+        if (cloudSettings.status === "fulfilled" && Array.isArray(cloudSettings.value?.featuredItems)) {
+          next.settings = {
+            ...next.settings,
+            featuredItems: cloudSettings.value.featuredItems
+          };
+        } else if (cloudProfile.status === "fulfilled" && Array.isArray(cloudProfile.value?.snapshot?.home?.featuredItems)) {
+          next.settings = {
+            ...next.settings,
+            featuredItems: cloudProfile.value.snapshot.home.featuredItems
+          };
+        } else if (Array.isArray(next.profile?.snapshot?.home?.featuredItems)) {
+          next.settings = {
+            ...next.settings,
+            featuredItems: next.profile.snapshot.home.featuredItems
+          };
+        } else if (!Array.isArray(next.settings?.featuredItems)) {
+          next.settings = {
+            ...next.settings,
+            featuredItems: defaultFeaturedItems
+          };
+        }
+
         return next;
       });
 
       setCloudConnected(true);
+      if (typeof window !== "undefined") {
+        window.__PORTFOLIO_CLOUD_LOADED__ = true;
+      }
     } catch (err) {
       console.error("PortfolioDataContext: Cloud fetch error:", err);
       setError("Unable to load cloud data. Displaying cached content.");
     } finally {
       setLoading(false);
+      if (typeof window !== "undefined") {
+        window.__PORTFOLIO_LOADING__ = false;
+      }
     }
   }, []);
 
@@ -177,6 +212,11 @@ export function PortfolioDataProvider({ children }) {
   useEffect(() => {
     fetchFromCloud();
   }, [fetchFromCloud]);
+
+  // Dynamically apply primary & secondary accent colors to CSS variables
+  useEffect(() => {
+    applyThemeColors(store.settings?.primaryAccent, store.settings?.secondaryAccent);
+  }, [store.settings?.primaryAccent, store.settings?.secondaryAccent]);
 
   // Public refresh API (called by admin after mutations)
   const refresh = useCallback(() => fetchFromCloud(), [fetchFromCloud]);

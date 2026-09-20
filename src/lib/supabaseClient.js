@@ -60,5 +60,9 @@ if (isSupabaseConfigured()) {
 
 export const supabase = clientInstance;
 
+if (typeof window !== "undefined" && clientInstance) {
+  window.__supabase = clientInstance;
+}
+
 export default supabase;
 

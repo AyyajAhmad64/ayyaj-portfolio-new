@@ -4,6 +4,7 @@ import PageHeader from "../components/PageHeader";
 import ExperienceCard from "../components/ExperienceCard";
 import Button from "../components/Button";
 import SEO from "../components/SEO";
+import NextPageNavigation from "../components/NextPageNavigation";
 
 export default function ExperiencePage() {
   const { experience } = usePortfolioData();
@@ -57,6 +58,15 @@ export default function ExperiencePage() {
           </Button>
         </div>
       </section>
+
+      <NextPageNavigation
+        prev={{ label: "Technical Skills", to: "/skills" }}
+        next={{
+          label: "Projects Catalog",
+          to: "/projects",
+          description: "Explore deployed full-stack platforms, architectures, and open-source systems."
+        }}
+      />
     </>
   );
 }

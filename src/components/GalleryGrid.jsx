@@ -38,6 +38,7 @@ export default function GalleryGrid({ items }) {
                 src={item.thumbnail || item.src}
                 alt={item.alt || item.title}
                 loading="lazy"
+                decoding="async"
                 className="gallery-thumb-img"
               />
             </div>

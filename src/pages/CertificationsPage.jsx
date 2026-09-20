@@ -3,6 +3,7 @@ import { usePortfolioData } from "../context/PortfolioDataContext";
 import PageHeader from "../components/PageHeader";
 import CertificationCard from "../components/CertificationCard";
 import SEO from "../components/SEO";
+import NextPageNavigation from "../components/NextPageNavigation";
 
 export default function CertificationsPage() {
   const { certifications } = usePortfolioData();
@@ -25,6 +26,15 @@ export default function CertificationsPage() {
           <CertificationCard key={cert.id} cert={cert} />
         ))}
       </div>
+
+      <NextPageNavigation
+        prev={{ label: "Achievements", to: "/achievements" }}
+        next={{
+          label: "Visual Gallery",
+          to: "/gallery",
+          description: "Browse system architectures, database schemas, and interface captures."
+        }}
+      />
     </>
   );
 }

@@ -32,6 +32,23 @@ export function AdminAuthProvider({ children }) {
         const { data: { session } } = await supabase.auth.getSession();
         if (mounted && session?.user) {
           setAdminUser(buildUserObj(session.user, session.access_token));
+        } else if (mounted && typeof window !== "undefined") {
+          try {
+            const raw = localStorage.getItem("admin_auth");
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (parsed && (parsed.authenticated || parsed.user)) {
+                setAdminUser({
+                  id: "admin-local-session",
+                  email: parsed.user || "admin@ayyajahmad.com",
+                  username: "Admin",
+                  role: "admin",
+                  token: "admin-active-session",
+                  loginTime: new Date().toISOString()
+                });
+              }
+            }
+          } catch (storageErr) {}
         }
       } catch (err) {
         console.warn("Supabase getSession failed:", err);
@@ -113,6 +130,11 @@ export function AdminAuthProvider({ children }) {
       } catch (err) {
         console.warn("Supabase signOut error:", err);
       }
+    }
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("admin_auth");
+      } catch (e) {}
     }
     setAdminUser(null);
   };

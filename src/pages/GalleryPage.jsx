@@ -4,6 +4,7 @@ import PageHeader from "../components/PageHeader";
 import ProjectFilter from "../components/ProjectFilter";
 import GalleryGrid from "../components/GalleryGrid";
 import SEO from "../components/SEO";
+import NextPageNavigation from "../components/NextPageNavigation";
 
 export default function GalleryPage() {
   const { gallery } = usePortfolioData();
@@ -49,6 +50,15 @@ export default function GalleryPage() {
       />
 
       <GalleryGrid items={filteredItems} />
+
+      <NextPageNavigation
+        prev={{ label: "Certifications", to: "/certifications" }}
+        next={{
+          label: "Get in Touch",
+          to: "/contact",
+          description: "Connect directly for job opportunities, projects, or professional collaborations."
+        }}
+      />
     </>
   );
 }

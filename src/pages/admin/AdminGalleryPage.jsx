@@ -1,12 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { getGalleryAdmin, saveGalleryItem, deleteGalleryItem, reorderGallery } from "../../services/dataService";
 import { uploadMediaFile } from "../../services/supabaseService";
 import Button from "../../components/Button";
 import SEO from "../../components/SEO";
+import AdminBulkActionsBar from "../../components/AdminBulkActionsBar";
+import AdminContentPreviewModal from "../../components/AdminContentPreviewModal";
+import { generateUniqueTitle } from "../../utils/slugUtils";
 
 export default function AdminGalleryPage() {
   const [list, setList] = useState([]);
+  const [savedOrderIds, setSavedOrderIds] = useState([]);
+  const [selectedGalleryIds, setSelectedGalleryIds] = useState([]);
   const [editing, setEditing] = useState(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [errorNotice, setErrorNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -14,10 +20,168 @@ export default function AdminGalleryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [draggedIdx, setDraggedIdx] = useState(null);
+
+  const isOrderDirty = useMemo(() => {
+    if (!savedOrderIds.length || savedOrderIds.length !== list.length) return false;
+    return list.some((g, idx) => g.id !== savedOrderIds[idx]);
+  }, [list, savedOrderIds]);
+
+  const handleDragStart = (e, index) => {
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = (e, targetIdx) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === targetIdx) return;
+    const reordered = [...list];
+    const [movedItem] = reordered.splice(draggedIdx, 1);
+    reordered.splice(targetIdx, 0, movedItem);
+    reordered.forEach((g, idx) => {
+      g.sortOrder = idx + 1;
+    });
+    setList(reordered);
+    setDraggedIdx(null);
+  };
+
+  const handleMove = (index, direction) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= list.length) return;
+    const reordered = [...list];
+    const temp = reordered[index];
+    reordered[index] = reordered[targetIdx];
+    reordered[targetIdx] = temp;
+    reordered.forEach((g, idx) => {
+      g.sortOrder = idx + 1;
+    });
+    setList(reordered);
+  };
+
+  const handleSaveOrder = async () => {
+    try {
+      setIsSaving(true);
+      setErrorNotice("");
+      const orderedIds = list.map((g) => g.id);
+      await reorderGallery(orderedIds);
+      setSavedOrderIds(orderedIds);
+      setNotice("✓ Gallery order saved successfully to Supabase.");
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      console.error("Reorder failed in cloud:", err);
+      setErrorNotice(err.message || "Failed to save order.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleResetOrder = () => {
+    if (!savedOrderIds.length) return;
+    const map = new Map(list.map((g) => [g.id, g]));
+    const restored = savedOrderIds.map((id) => map.get(id)).filter(Boolean);
+    restored.forEach((g, idx) => {
+      g.sortOrder = idx + 1;
+    });
+    setList(restored);
+    setNotice("Order reset to last saved state.");
+    setTimeout(() => setNotice(""), 2000);
+  };
+
+  const handleDuplicate = (item) => {
+    const copyTitle = generateUniqueTitle(item.title, list.map((x) => x.title));
+    setEditing({
+      ...item,
+      id: undefined,
+      title: copyTitle,
+      status: "draft"
+    });
+    setNotice(`Duplicated "${item.title}". Review and save.`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedGalleryIds(list.map((g) => g.id));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedGalleryIds([]);
+  };
+
+  const toggleSelectGallery = (id) => {
+    setSelectedGalleryIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkPublish = async (ids) => {
+    setIsSaving(true);
+    setErrorNotice("");
+    try {
+      for (const id of ids) {
+        const item = list.find((x) => x.id === id);
+        if (item) {
+          await saveGalleryItem({ ...item, status: "published" });
+        }
+      }
+      await loadData();
+      setSelectedGalleryIds([]);
+      setNotice(`✓ Successfully published ${ids.length} gallery items.`);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      setErrorNotice("Bulk publish failed: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleBulkDraft = async (ids) => {
+    setIsSaving(true);
+    setErrorNotice("");
+    try {
+      for (const id of ids) {
+        const item = list.find((x) => x.id === id);
+        if (item) {
+          await saveGalleryItem({ ...item, status: "draft" });
+        }
+      }
+      await loadData();
+      setSelectedGalleryIds([]);
+      setNotice(`✓ Successfully set ${ids.length} gallery items to draft.`);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      setErrorNotice("Bulk draft failed: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleBulkDelete = async (ids) => {
+    setIsSaving(true);
+    setErrorNotice("");
+    try {
+      for (const id of ids) {
+        await deleteGalleryItem(id);
+      }
+      await loadData();
+      setSelectedGalleryIds([]);
+      setNotice(`✓ Successfully deleted ${ids.length} gallery items.`);
+      setTimeout(() => setNotice(""), 3000);
+    } catch (err) {
+      setErrorNotice("Bulk delete failed: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const loadData = async () => {
     const data = await getGalleryAdmin();
-    setList(data);
+    setList(data || []);
+    setSavedOrderIds((data || []).map((g) => g.id));
   };
 
   useEffect(() => {
@@ -77,21 +241,6 @@ export default function AdminGalleryPage() {
     }
   };
 
-  const handleMove = async (index, direction) => {
-    const targetIdx = index + direction;
-    if (targetIdx < 0 || targetIdx >= list.length) return;
-    const reordered = [...list];
-    const temp = reordered[index];
-    reordered[index] = reordered[targetIdx];
-    reordered[targetIdx] = temp;
-    setList(reordered);
-    try {
-      await reorderGallery(reordered.map((g) => g.id));
-    } catch (err) {
-      console.warn("Reorder failed in cloud:", err);
-    }
-  };
-
   const categories = ["All", ...Array.from(new Set(list.map((g) => g.category).filter(Boolean)))];
 
   const filtered = list.filter((item) => {
@@ -120,9 +269,14 @@ export default function AdminGalleryPage() {
           </p>
         </div>
 
-        <Button onClick={handleCreate} variant="primary" size="sm">
-          + Add Gallery Item
-        </Button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <Button to="/gallery" target="_blank" rel="noopener noreferrer" variant="outline" size="sm">
+            Live Preview ↗
+          </Button>
+          <Button onClick={handleCreate} variant="primary" size="sm">
+            + Add Gallery Item
+          </Button>
+        </div>
       </div>
 
       {errorNotice && (
@@ -155,6 +309,51 @@ export default function AdminGalleryPage() {
       {notice && (
         <div style={{ padding: "10px 14px", background: "rgba(16, 185, 129, 0.12)", border: "1px solid var(--accent-emerald)", borderRadius: "var(--radius-sm)", color: "var(--accent-emerald)", fontSize: "13px", marginBottom: "20px" }}>
           {notice}
+        </div>
+      )}
+
+      {/* Unsaved Order Changes Indicator */}
+      {isOrderDirty && (
+        <div
+          role="alert"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "12px",
+            padding: "12px 18px",
+            background: "rgba(245, 158, 11, 0.15)",
+            border: "1px solid var(--accent-amber)",
+            borderRadius: "var(--radius-sm)",
+            color: "var(--accent-amber)",
+            marginBottom: "16px"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: "600", fontSize: "13px" }}>
+            <span style={{ fontSize: "16px" }}>⚠️</span>
+            <span>You have unsaved gallery order changes. Reordering is pending cloud sync.</span>
+          </div>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              type="button"
+              onClick={handleResetOrder}
+              className="btn btn-outline btn-sm"
+              style={{ borderColor: "var(--accent-amber)", color: "var(--accent-amber)", fontSize: "12px" }}
+              disabled={isSaving}
+            >
+              Reset Order
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveOrder}
+              className="btn btn-primary btn-sm"
+              style={{ fontSize: "12px" }}
+              disabled={isSaving}
+            >
+              {isSaving ? "Saving Order..." : "Save Order"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -341,6 +540,14 @@ export default function AdminGalleryPage() {
               <Button type="submit" variant="primary" disabled={isSaving}>
                 {isSaving ? "Saving..." : "Save Item"}
               </Button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setIsPreviewOpen(true)}
+                style={{ borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)" }}
+              >
+                👁 Live Preview (Draft)
+              </button>
               <Button onClick={() => setEditing(null)} variant="outline">
                 Cancel
               </Button>
@@ -349,92 +556,191 @@ export default function AdminGalleryPage() {
         </div>
       )}
 
-      {/* Grid of gallery items with Reordering & Quick Controls */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 1fr))", gap: "16px", width: "100%", minWidth: 0, boxSizing: "border-box" }}>
+      {/* Select All / Counter Bar */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          margin: "16px 0 8px",
+          padding: "4px 8px",
+          background: "var(--bg-elevated)",
+          borderRadius: "var(--radius-sm)",
+          border: "1px solid var(--border-subtle)"
+        }}
+      >
+        <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--text-bright)", cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={list.length > 0 && selectedGalleryIds.length === list.length}
+            onChange={(e) => {
+              if (e.target.checked) handleSelectAll();
+              else handleDeselectAll();
+            }}
+            style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "var(--accent-cyan)" }}
+          />
+          <span style={{ fontWeight: 600 }}>Select All ({list.length} gallery items)</span>
+        </label>
+        {selectedGalleryIds.length > 0 && (
+          <span style={{ fontSize: "12px", color: "var(--accent-cyan)", fontFamily: "var(--font-mono)", fontWeight: 600 }}>
+            {selectedGalleryIds.length} of {list.length} selected
+          </span>
+        )}
+      </div>
+
+      {/* Gallery Cards Grid */}
+      <div className="admin-gallery-grid">
         {filtered.length === 0 ? (
-          <div className="card" style={{ textAlign: "center", padding: "36px", color: "var(--text-muted)", gridColumn: "1 / -1" }}>
+          <div className="card" style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px 20px", color: "var(--text-muted)" }}>
             No gallery items found matching &quot;{searchQuery || categoryFilter}&quot;.
           </div>
         ) : (
-          filtered.map((item, idx) => (
-            <div key={item.id} className="card" style={{ display: "flex", flexDirection: "column", height: "100%", padding: "16px" }}>
-              <div style={{ aspectRatio: "16/9", background: "var(--bg-base)", overflow: "hidden", borderRadius: "4px", marginBottom: "10px" }}>
-                <img src={item.src} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              </div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginBottom: "4px" }}>
-                <h3 style={{ fontSize: "14px", color: "var(--text-bright)", margin: 0 }}>{item.title}</h3>
-                <span
-                  style={{
-                    fontSize: "10px",
-                    fontWeight: "700",
-                    padding: "2px 6px",
-                    borderRadius: "3px",
-                    background: (item.status === "draft") ? "rgba(245, 158, 11, 0.15)" : "rgba(16, 185, 129, 0.15)",
-                    color: (item.status === "draft") ? "var(--accent-amber)" : "var(--accent-emerald)",
-                    fontFamily: "var(--font-mono)"
-                  }}
-                >
-                  {(item.status || "published").toUpperCase()}
-                </span>
-              </div>
-              <span style={{ fontSize: "11.5px", color: "var(--accent-cyan)", marginBottom: "8px" }}>
-                {item.category} · {item.date || "2026"}
-              </span>
-              {item.caption && (
-                <p style={{ fontSize: "12px", color: "var(--text-muted)", lineClamp: 2, marginBottom: "12px", flex: 1 }}>
-                  {item.caption}
-                </p>
-              )}
-              <div style={{ marginTop: "auto", paddingTop: "8px", borderTop: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                {/* Reorder Buttons */}
-                <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-                  <button
-                    type="button"
-                    onClick={() => handleMove(idx, -1)}
-                    disabled={idx === 0}
-                    className="btn btn-ghost btn-sm"
-                    style={{ padding: "3px 6px", fontSize: "11px", lineHeight: 1 }}
-                    title="Move Up"
-                    aria-label={`Move gallery item #${idx + 1} up`}
+          filtered.map((item, idx) => {
+            const isSelected = selectedGalleryIds.includes(item.id);
+            return (
+              <div
+                key={item.id || idx}
+                className={`card admin-gallery-card admin-card ${draggedIdx === idx ? "is-dragging" : ""}`}
+                draggable={!searchQuery && categoryFilter === "All" && statusFilter === "All"}
+                onDragStart={(e) => handleDragStart(e, idx)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, idx)}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  height: "100%",
+                  padding: "16px",
+                  cursor: !searchQuery && categoryFilter === "All" && statusFilter === "All" ? "grab" : "default",
+                  opacity: draggedIdx === idx ? 0.5 : 1,
+                  border: isSelected ? "1px solid var(--accent-cyan)" : undefined,
+                  background: isSelected ? "rgba(56, 189, 248, 0.05)" : undefined,
+                  transition: "transform 0.15s ease, box-shadow 0.15s ease"
+                }}
+              >
+                {/* Header with Selection Checkbox and Status */}
+                <div className="admin-card-header-bar" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <label className="admin-card-select-wrap">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelectGallery(item.id)}
+                      aria-label={`Select gallery item ${item.title}`}
+                      style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "var(--accent-cyan)" }}
+                      className="admin-card-checkbox"
+                    />
+                    <span className="admin-card-index-badge">
+                      #{String(idx + 1).padStart(2, "0")}
+                    </span>
+                  </label>
+                  <span
+                    className="admin-status-pill"
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: "700",
+                      padding: "2px 6px",
+                      borderRadius: "3px",
+                      background: (item.status === "draft") ? "rgba(245, 158, 11, 0.15)" : "rgba(16, 185, 129, 0.15)",
+                      color: (item.status === "draft") ? "var(--accent-amber)" : "var(--accent-emerald)",
+                      fontFamily: "var(--font-mono)",
+                      whiteSpace: "nowrap",
+                      wordBreak: "normal",
+                      overflowWrap: "normal",
+                      flexShrink: 0,
+                      display: "inline-flex"
+                    }}
                   >
-                    ▲
-                  </button>
-                  <span style={{ fontSize: "10.5px", color: "var(--accent-amber)", fontWeight: "700", fontFamily: "var(--font-mono)" }}>
-                    #{String(idx + 1).padStart(2, "0")}
+                    {(item.status || "published").toUpperCase()}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => handleMove(idx, 1)}
-                    disabled={idx === filtered.length - 1}
-                    className="btn btn-ghost btn-sm"
-                    style={{ padding: "3px 6px", fontSize: "11px", lineHeight: 1 }}
-                    title="Move Down"
-                    aria-label={`Move gallery item #${idx + 1} down`}
-                  >
-                    ▼
-                  </button>
                 </div>
 
-                {/* Edit & Delete Buttons */}
-                <div style={{ display: "flex", gap: "6px" }}>
-                  <Button onClick={() => handleEdit(item)} variant="outline" size="sm">
-                    Edit ✎
-                  </Button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(item.id, item.title)}
-                    className="btn btn-ghost btn-sm"
-                    style={{ color: "#f87171" }}
-                    aria-label={`Delete gallery item ${item.title}`}
-                  >
-                    Delete ✕
-                  </button>
+                <div className="admin-gallery-card-img-wrap" style={{ aspectRatio: "16/9", background: "var(--bg-base)", overflow: "hidden", borderRadius: "6px", marginBottom: "10px", width: "100%" }}>
+                  <img src={item.src} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </div>
+
+                <h3 style={{ fontSize: "15px", fontWeight: "700", color: "var(--text-bright)", margin: "0 0 4px", wordBreak: "break-word" }}>{item.title}</h3>
+                <span style={{ fontSize: "12px", color: "var(--accent-cyan)", marginBottom: "8px", fontWeight: "600" }}>
+                  {item.category} · {item.date || "2026"}
+                </span>
+
+                {item.caption && (
+                  <p style={{ fontSize: "12px", color: "var(--text-muted)", lineClamp: 2, marginBottom: "12px", flex: 1, wordBreak: "break-word" }}>
+                    {item.caption}
+                  </p>
+                )}
+
+                <div className="admin-gallery-card-footer" style={{ marginTop: "auto", paddingTop: "10px", borderTop: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                  {/* Reorder Buttons */}
+                  <div className="admin-card-reorder-wrap">
+                    <button
+                      type="button"
+                      onClick={() => handleMove(idx, -1)}
+                      disabled={idx === 0}
+                      className="btn btn-ghost btn-sm admin-card-reorder-btn"
+                      title="Move Up"
+                      aria-label={`Move gallery item #${idx + 1} up`}
+                    >
+                      ↑
+                    </button>
+                    <span style={{ fontSize: "10.5px", color: "var(--accent-amber)", fontWeight: "700", fontFamily: "var(--font-mono)" }}>
+                      #{String(idx + 1).padStart(2, "0")}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleMove(idx, 1)}
+                      disabled={idx === filtered.length - 1}
+                      className="btn btn-ghost btn-sm admin-card-reorder-btn"
+                      title="Move Down"
+                      aria-label={`Move gallery item #${idx + 1} down`}
+                    >
+                      ↓
+                    </button>
+                  </div>
+
+                  {/* Actions Column */}
+                  <div className="admin-gallery-actions-col admin-card-actions">
+                    <Button onClick={() => handleEdit(item)} variant="outline" size="sm" className="admin-action-btn">
+                      Edit ✎
+                    </Button>
+                    <Button onClick={() => handleDuplicate(item)} variant="outline" size="sm" className="admin-action-btn">
+                      Duplicate ⎘
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(item.id, item.title)}
+                      className="btn btn-ghost btn-sm admin-action-btn admin-delete-btn"
+                      style={{ color: "#f87171" }}
+                      aria-label={`Delete gallery item ${item.title}`}
+                    >
+                      Delete ✕
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
+
+      {/* Floating Bulk Actions Toolbar */}
+      <AdminBulkActionsBar
+        selectedIds={selectedGalleryIds}
+        totalCount={list.length}
+        onSelectAll={handleSelectAll}
+        onDeselectAll={handleDeselectAll}
+        onBulkPublish={handleBulkPublish}
+        onBulkDraft={handleBulkDraft}
+        onBulkDelete={handleBulkDelete}
+        itemTypeLabel="gallery items"
+        selectedItems={list.filter((g) => selectedGalleryIds.includes(g.id))}
+      />
+
+      {/* Live Content Preview Modal */}
+      <AdminContentPreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
+        type="gallery"
+        data={editing}
+      />
     </div>
   );
 }
